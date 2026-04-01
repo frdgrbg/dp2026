@@ -488,14 +488,15 @@ let lastNotifTs = Date.now();
 // ── Persistent Alert System ──
 // Alerts stored in Firebase permanently, each user tracks what they've seen via localStorage
 
-// ── Alert seen tracking (per device via localStorage) ──
+// ── Alert seen tracking (per USER, not per device) ──
+function seenKey(){ return 'dpwt_seen_' + (currentUser?.name||'guest').replace(/\s/g,'_'); }
 function getSeenAlerts(){ 
-  return new Set(JSON.parse(localStorage.getItem('dpwt_seen_alerts')||'[]')); 
+  return new Set(JSON.parse(localStorage.getItem(seenKey())||'[]')); 
 }
 function markAlertSeen(id){ 
   const seen = getSeenAlerts(); 
   seen.add(id); 
-  localStorage.setItem('dpwt_seen_alerts', JSON.stringify([...seen].slice(-300)));
+  localStorage.setItem(seenKey(), JSON.stringify([...seen].slice(-300)));
 }
 function isAlertSeen(id){ return getSeenAlerts().has(id); }
 

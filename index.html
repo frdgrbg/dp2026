@@ -96,6 +96,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .fade-up{animation:fadeUp .3s ease forwards}
 @media(max-width:640px){.sidebar{width:56px}.sidebar-item span:not(.ico){display:none}.sidebar-badge,.sidebar-label{display:none}.content{padding:16px}.overview-grid{grid-template-columns:1fr 1fr}.topbar-title{display:none}}
 </style>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+</script>
 </head>
 <body>
 
@@ -135,6 +140,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <div id="app-screen">
   <div class="online-bar" id="online-bar"><div class="online-dot"></div></div>
+  <div id="day-bar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-logo">DP World Tour '26</span>
@@ -144,6 +150,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="topbar-right">
       <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative;white-space:nowrap">👥<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
       <button id="notif-btn" class="btn-sm" style="position:relative;white-space:nowrap">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="day-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--green);border-color:var(--green2)">📅</button>
       <button id="users-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--blue);border-color:var(--blue)">👥</button>
       <button id="admin-btn" class="btn-sm amber" style="display:none;white-space:nowrap">⚙️</button>
       <button class="btn-sm green" id="pdf-btn">PDF Rapor</button>
@@ -200,6 +207,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
     <div id="notif-list"><div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div></div>
+  </div>
+</div>
+
+<!-- Day Settings Modal -->
+<div class="modal-overlay" id="day-modal">
+  <div class="modal" style="max-width:500px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:14px;font-weight:600;color:var(--green)">📅 Turnuva Günleri</span>
+      <button class="btn-sm" id="day-modal-close">✕ Kapat</button>
+    </div>
+    <div id="day-settings-content"></div>
   </div>
 </div>
 
@@ -346,6 +364,20 @@ const DEFAULT_SECTIONS = [
 
 let SECTIONS = JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
 
+// Turnuva günleri (Admin ayarlayabilir)
+const DEFAULT_DAYS = [
+  {id:'day1', label:'1. Gün', date:'2026-05-01', desc:'Kurulum & Hazırlık'},
+  {id:'day2', label:'2. Gün', date:'2026-05-02', desc:'Pro-Am Turu'},
+  {id:'day3', label:'3. Gün', date:'2026-05-03', desc:'1. Tur'},
+  {id:'day4', label:'4. Gün', date:'2026-05-04', desc:'2. Tur'},
+  {id:'day5', label:'5. Gün', date:'2026-05-05', desc:'3. Tur'},
+  {id:'day6', label:'6. Gün', date:'2026-05-06', desc:'Final Turu'},
+];
+let tournDays = JSON.parse(JSON.stringify(DEFAULT_DAYS));
+let activeDay = localStorage.getItem('dpwt_active_day') || 'day1';
+function setActiveDay(id){ activeDay=id; localStorage.setItem('dpwt_active_day',id); renderTopDay(); renderSidebar(); renderContent(); }
+function getTaskKeyWithDay(sid,d,i){ return activeDay+'|'+sid+'|'+d+'|'+i; }
+
 // Departman renk paleti
 const DEPT_COLORS = {
   'Teknik':        {bg:'rgba(56,139,251,.1)',  border:'rgba(56,139,251,.3)',  text:'#60a5fa', header:'rgba(56,139,251,.2)'},
@@ -368,11 +400,36 @@ const DEPT_COLORS = {
 function getDeptColor(d){ return DEPT_COLORS[d] || {bg:'rgba(255,255,255,.03)',border:'rgba(255,255,255,.08)',text:'var(--text2)',header:'rgba(255,255,255,.06)'}; }
 
 let activeDeptFilter = ''; // '' = tümü
+let priorityFilter = ''; // '' = tümü, 'high','normal','low'
+
+const PRIORITY = {
+  high:   {label:'🔴 Acil',   color:'#f87171', bg:'rgba(248,113,113,.1)', border:'rgba(248,113,113,.3)'},
+  normal: {label:'🟡 Normal', color:'#fbbf24', bg:'rgba(251,191,36,.08)', border:'rgba(251,191,36,.25)'},
+  low:    {label:'🟢 Düşük',  color:'#4ade80', bg:'rgba(74,222,128,.06)', border:'rgba(74,222,128,.2)'},
+};
+
+// Task priorities stored in Firebase: priorities/{dayId}_{taskKey}
+let taskPriorities = {}; // key -> 'high'|'normal'|'low'
+let unsubPriorities = null;
+
+function subscribePriorities(){
+  if(unsubPriorities) unsubPriorities();
+  unsubPriorities = onSnapshot(collection(db,'priorities'), snap=>{
+    taskPriorities={};
+    snap.forEach(d=>{ taskPriorities[d.id]=d.data().priority; });
+    renderContent();
+  });
+}
+async function setPriority(k, p){
+  const id = k.replace(/[|]/g,'__');
+  if(p) await setDoc(doc(db,'priorities',id),{priority:p,key:k});
+  else await deleteDoc(doc(db,'priorities',id));
+}
 let currentUser = null, currentSection = 'overview', state = {}, onlineUsers = {}, deptOpen = {};
 let unsubTasks = null, unsubUsers = null, unsubSections = null;
 
 const isAdmin = () => currentUser?.dept === 'Admin';
-const taskKey = (sid,d,i) => sid+'|'+d+'|'+i;
+const taskKey = (sid,d,i) => activeDay+'|'+sid+'|'+d+'|'+i;
 const fbKey = k => k.replace(/\|/g,'__');
 const slugify = t => t.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').slice(0,30)+'-'+Date.now().toString(36);
 const randomColor = name => { const c=['#4ade80','#60a5fa','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9']; let h=0; for(let x of name) h=x.charCodeAt(0)+((h<<5)-h); return c[Math.abs(h)%c.length]; };
@@ -722,12 +779,16 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     if(isAdmin()){
       document.getElementById('admin-btn').style.display = 'inline-flex';
       document.getElementById('users-btn').style.display = 'inline-flex';
+      document.getElementById('day-btn').style.display = 'inline-flex';
     }
     toast('Bağlandı ✓','success');
     // Auto-filter to own dept for non-admin users
     if(currentUser.dept !== 'Admin') activeDeptFilter = currentUser.dept;
     if(currentUser.dept !== 'Admin') activeDeptFilter = currentUser.dept;
     notifications = [];
+    await loadTournDays();
+    renderTopDay();
+    subscribePriorities();
     startHeartbeat();
     subscribeNotifs();
     subscribeAlerts();
@@ -748,6 +809,7 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   document.getElementById('admin-btn').style.display='none';
   document.getElementById('approval-btn').style.display='none';
   document.getElementById('users-btn').style.display='none';
+  document.getElementById('day-btn').style.display='none';
   document.getElementById('login-btn').textContent='Giriş Yap →';
   document.getElementById('login-btn').disabled=false;
   document.getElementById('login-dept').value='';
@@ -774,7 +836,7 @@ function renderSidebar(){
       <span class="ico">${s.ico}</span><span>${s.title}</span><span class="sidebar-badge">${done}/${total}</span></button>`;
   });
   sb.innerHTML = h + `</div>`;
-  sb.querySelectorAll('.sidebar-item').forEach(btn => btn.addEventListener('click', ()=>{ if(btn.dataset.sec !== currentSection){ activeDeptFilter = currentUser?.dept !== 'Admin' ? currentUser?.dept||'' : ''; } currentSection=btn.dataset.sec; renderSidebar(); renderContent(); }));
+  sb.querySelectorAll('.sidebar-item').forEach(btn => btn.addEventListener('click', ()=>{ if(btn.dataset.sec !== currentSection){ activeDeptFilter = currentUser?.dept !== 'Admin' ? currentUser?.dept||'' : ''; priorityFilter=''; } currentSection=btn.dataset.sec; renderSidebar(); renderContent(); }));
 }
 
 // ── Stats ──
@@ -816,17 +878,22 @@ function renderSection(c,sid){
   const sec=SECTIONS.find(s=>s.id===sid); if(!sec){ currentSection='overview'; renderContent(); return; }
   const{done,total}=secStats(sid); const pct=total?Math.round(done/total*100):0;
 
-  // Build dept filter pills
+  // Build dept + priority filter pills
   const allDepts = sec.tasks.map(d=>d.d);
-  let filterHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-    <span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Filtrele:</span>
-    <button class="dept-filter-btn ${!activeDeptFilter?'active-filter':''}" data-dept="" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:${!activeDeptFilter?'var(--green3)':'var(--bg3)'};color:${!activeDeptFilter?'var(--green)':'var(--text2)'};cursor:pointer">Tümü</button>`;
+  let filterHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+    <span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Dept:</span>
+    <button class="dept-filter-btn" data-dept="" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:${!activeDeptFilter?'var(--green3)':'var(--bg3)'};color:${!activeDeptFilter?'var(--green)':'var(--text2)'};cursor:pointer">Tümü</button>`;
   allDepts.forEach(d=>{
     const col=getDeptColor(d);
     const isActive=activeDeptFilter===d;
-    filterHtml+=`<button class="dept-filter-btn ${isActive?'active-filter':''}" data-dept="${d}" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid ${isActive?col.text:col.border};background:${isActive?col.header:col.bg};color:${col.text};cursor:pointer">${d}</button>`;
+    filterHtml+=`<button class="dept-filter-btn" data-dept="${d}" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${isActive?col.text:col.border};background:${isActive?col.header:col.bg};color:${col.text};cursor:pointer">${d}</button>`;
   });
-  filterHtml += `</div>`;
+  filterHtml += `</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Öncelik:</span>
+    <button class="pri-filter-btn" data-pri="" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:${!priorityFilter?'var(--bg3)':'transparent'};color:var(--text2);cursor:pointer">Tümü</button>
+    ${Object.entries(PRIORITY).map(([k,v])=>`<button class="pri-filter-btn" data-pri="${k}" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${priorityFilter===k?v.color:v.border};background:${priorityFilter===k?v.bg:'transparent'};color:${v.color};cursor:pointer">${v.label}</button>`).join('')}
+  </div>`;
 
   let h=`<div class="fade-up"><div class="sec-heading">
     <h2><span class="sec-ico">${sec.ico}</span>${sec.title}</h2>
@@ -854,13 +921,25 @@ function renderSection(c,sid){
       <div class="dept-body" id="db-${dk}" style="display:${open?'block':'none'}">`;
     dept.items.forEach((item,i)=>{ const k=taskKey(sid,dept.d,i); const s=state[k]; const isDone=s?.done;
       const noteKey='note__'+fbKey(k); const note=state[noteKey]?.text||'';
-      h+=`<div style="border-bottom:1px solid ${col.border}">
+      const pri=getPriority(k); const priInfo=pri?PRIORITY[pri]:null;
+      // Apply priority filter
+      if(priorityFilter && pri !== priorityFilter){ return; }
+      h+=`<div style="border-bottom:1px solid ${col.border}${priInfo?';border-left:3px solid '+priInfo.color:''}">
         <div class="task-row ${isDone?'done':''}" data-k="${k}" data-sid="${sid}" style="border-bottom:none">
           <div class="task-check" style="${isDone?'':'border-color:'+col.border}"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#052e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <span class="task-label">${item}</span>
           <div style="display:flex;align-items:center;gap:6px">
+            ${priInfo?priorityBadge(pri):''}
             ${isDone?`<span class="task-who">${s.who} ${s.time||''}</span>`:''}
-            ${isAdmin()?`<button class="note-btn" data-nk="${noteKey}" data-sid="${sid}" data-dept="${dept.d}" data-label="${item.replace(/"/g,'')}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${note?'var(--amber)':'var(--text3)'}" title="${note?'Notu düzenle':'Not ekle'}">${note?'💬':'＋'}</button>`:''}
+            ${isAdmin()?`
+              <select class="pri-select" data-k="${k}" style="background:transparent;border:none;font-size:11px;color:var(--text3);cursor:pointer;outline:none;max-width:70px">
+                <option value="" ${!pri?'selected':''}>—</option>
+                <option value="high" ${pri==='high'?'selected':''}>🔴 Acil</option>
+                <option value="normal" ${pri==='normal'?'selected':''}>🟡 Normal</option>
+                <option value="low" ${pri==='low'?'selected':''}>🟢 Düşük</option>
+              </select>
+              <button class="note-btn" data-nk="${noteKey}" data-sid="${sid}" data-dept="${dept.d}" data-label="${item.replace(/"/g,'')}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${note?'var(--amber)':'var(--text3)'}" title="${note?'Notu düzenle':'Not ekle'}">${note?'💬':'＋'}</button>
+            `:''}
           </div>
         </div>
         ${note?`<div style="padding:4px 16px 8px 46px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.05);border-top:1px dashed rgba(251,191,36,.2)">📝 ${note}</div>`:''}
@@ -872,6 +951,14 @@ function renderSection(c,sid){
   c.querySelectorAll('.dept-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{
     activeDeptFilter = btn.dataset.dept;
     renderContent();
+  }));
+  c.querySelectorAll('.pri-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    priorityFilter = btn.dataset.pri;
+    renderContent();
+  }));
+  c.querySelectorAll('.pri-select').forEach(sel=>sel.addEventListener('change', async(e)=>{
+    e.stopPropagation();
+    await setPriority(sel.dataset.k, sel.value);
   }));
   c.querySelectorAll('.dept-header').forEach(el=>el.addEventListener('click',()=>{ const dk=el.dataset.dk; const body=document.getElementById('db-'+dk); const open=body.style.display!=='none'; body.style.display=open?'none':'block'; deptOpen[dk]=!open; }));
   c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click', async(e)=>{ if(e.target.closest('.note-btn')) return; const k=el.dataset.k; const sid=el.dataset.sid; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
@@ -1091,6 +1178,96 @@ function renderAdminPanel(){
 }
 
 
+// ── Tournament Day System ──
+function renderTopDay(){
+  const bar = document.getElementById('day-bar');
+  if(!bar) return;
+  const today = new Date().toISOString().slice(0,10);
+  let h = '';
+  tournDays.forEach(d=>{
+    const isActive = activeDay === d.id;
+    const isPast = d.date < today;
+    const isToday = d.date === today;
+    const dateStr = new Date(d.date).toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+    h += `<button class="day-pill" data-id="${d.id}" style="display:flex;flex-direction:column;align-items:center;padding:6px 12px;border-radius:10px;border:1px solid ${isActive?'var(--green)':isToday?'rgba(74,222,128,.3)':'var(--border)'};background:${isActive?'var(--green3)':isToday?'rgba(74,222,128,.05)':'transparent'};cursor:pointer;white-space:nowrap;flex-shrink:0">
+      <span style="font-size:11px;font-weight:600;color:${isActive?'var(--green)':isToday?'var(--green)':'var(--text2)'}">${d.label}</span>
+      <span style="font-size:10px;color:${isActive?'var(--green)':'var(--text3)'}">${dateStr}</span>
+      <span style="font-size:9px;color:${isActive?'var(--green)':'var(--text3)'}">${d.desc}</span>
+    </button>`;
+  });
+  bar.innerHTML = h;
+  bar.querySelectorAll('.day-pill').forEach(btn=>btn.addEventListener('click',()=>setActiveDay(btn.dataset.id)));
+}
+
+async function loadTournDays(){
+  try{
+    const snap = await getDocs(collection(db,'tourn_days'));
+    if(!snap.empty){
+      tournDays = snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date));
+    }
+  }catch(e){}
+}
+
+async function saveTournDay(day){
+  await setDoc(doc(db,'tourn_days',day.id), day);
+}
+
+function renderDaySettings(){
+  const c = document.getElementById('day-settings-content');
+  let h = `<div style="margin-bottom:16px">
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Turnuva Günleri</div>`;
+  tournDays.forEach((d,i)=>{
+    h += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1">${d.label}</span>
+        <button class="btn-sm del-day-btn" data-idx="${i}" style="font-size:10px;padding:2px 8px;color:#f87171;border-color:#f87171">Sil</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">LABEL</div>
+          <input class="day-field" data-idx="${i}" data-field="label" value="${d.label}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div>
+        <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">TARİH</div>
+          <input type="date" class="day-field" data-idx="${i}" data-field="date" value="${d.date}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div>
+        <div style="grid-column:span 2"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">AÇIKLAMA</div>
+          <input class="day-field" data-idx="${i}" data-field="desc" value="${d.desc}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div>
+      </div>
+    </div>`;
+  });
+  h += `</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn-sm green" id="add-day-btn" style="flex:1;justify-content:center">+ Gün Ekle</button>
+    <button class="btn-sm green" id="save-days-btn" style="flex:1;justify-content:center">💾 Kaydet</button>
+  </div>`;
+  c.innerHTML = h;
+
+  c.querySelectorAll('.day-field').forEach(inp=>inp.addEventListener('change',()=>{
+    tournDays[inp.dataset.idx][inp.dataset.field] = inp.value;
+  }));
+  c.querySelectorAll('.del-day-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    tournDays.splice(Number(btn.dataset.idx),1);
+    renderDaySettings();
+  }));
+  document.getElementById('add-day-btn').addEventListener('click',()=>{
+    const n = tournDays.length + 1;
+    tournDays.push({id:'day'+n, label:n+'. Gün', date:'2026-05-0'+n, desc:'Açıklama'});
+    renderDaySettings();
+  });
+  document.getElementById('save-days-btn').addEventListener('click', async()=>{
+    try{
+      await Promise.all(tournDays.map(d=>saveTournDay(d)));
+      renderTopDay(); toast('Günler kaydedildi ✓','success');
+    }catch(e){ toast('Hata: '+e.message,'error'); }
+  });
+}
+
+// ── Priority System ──
+function getPriority(k){ return taskPriorities[k.replace(/[|]/g,'__')] || ''; }
+
+function priorityBadge(p){
+  if(!p) return '';
+  const pr = PRIORITY[p];
+  return `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${pr.bg};border:1px solid ${pr.border};color:${pr.color};white-space:nowrap">${pr.label}</span>`;
+}
+
 // ── Users List (Admin only) ──
 async function renderUsersList(){
   try{
@@ -1137,6 +1314,8 @@ async function renderUsersList(){
   }catch(e){ console.error(e); }
 }
 
+document.getElementById('day-btn').addEventListener('click', ()=>{ renderDaySettings(); document.getElementById('day-modal').classList.add('open'); });
+document.getElementById('day-modal-close').addEventListener('click', ()=>document.getElementById('day-modal').classList.remove('open'));
 document.getElementById('users-btn').addEventListener('click', ()=>{ renderUsersList(); document.getElementById('users-modal').classList.add('open'); });
 document.getElementById('users-close').addEventListener('click', ()=>document.getElementById('users-modal').classList.remove('open'));
 
@@ -1161,6 +1340,7 @@ async function tryRestoreSession(){
   if(currentUser.dept==='Admin'){
     document.getElementById('admin-btn').style.display='inline-flex';
     document.getElementById('users-btn').style.display='inline-flex';
+    document.getElementById('day-btn').style.display='inline-flex';
   }
 
   // Then connect Firebase in background - errors won't kick user out

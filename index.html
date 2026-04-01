@@ -986,33 +986,43 @@ function renderAdminPanel(){
 async function tryRestoreSession(){
   const saved = localStorage.getItem('dpwt_session');
   if(!saved) return;
-  try{
-    const u = JSON.parse(saved);
-    if(!u.name || !u.dept) return;
-    currentUser = u;
-    await fbSetUser(currentUser);
-    await loadApprovedAdmins();
-    subscribeAll();
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='block';
-    document.getElementById('top-username').textContent = currentUser.name;
-    const av = document.getElementById('top-avatar');
-    av.textContent = currentUser.initials;
-    av.style.background = currentUser.color;
-    av.style.color = '#fff';
-    if(currentUser.dept==='Admin') document.getElementById('admin-btn').style.display='inline-flex';
-    notifications = [];
-    notifications = [];
-    startHeartbeat();
-    subscribeNotifs();
-    subscribeAlerts();
-    await checkPendingAlerts();
-    subscribeApprovals();
-    if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
-    window.addEventListener('beforeunload', ()=>{ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
-    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
-    window.addEventListener('pagehide', ()=>{ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
-  }catch(e){ localStorage.removeItem('dpwt_session'); }
+  let u;
+  try{ u = JSON.parse(saved); }catch(e){ localStorage.removeItem('dpwt_session'); return; }
+  if(!u || !u.name || !u.dept) { localStorage.removeItem('dpwt_session'); return; }
+
+  currentUser = u;
+
+  // Show app immediately without waiting for Firebase
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('top-username').textContent = currentUser.name;
+  const av = document.getElementById('top-avatar');
+  av.textContent = currentUser.initials;
+  av.style.background = currentUser.color;
+  av.style.color = '#fff';
+  if(currentUser.dept==='Admin') document.getElementById('admin-btn').style.display='inline-flex';
+
+  // Then connect Firebase in background - errors won't kick user out
+  try{ await fbSetUser(currentUser); }catch(e){ console.warn('fbSetUser failed, continuing offline'); }
+  try{ await loadApprovedAdmins(); }catch(e){}
+
+  subscribeAll();
+  notifications = [];
+  startHeartbeat();
+  subscribeNotifs();
+  subscribeAlerts();
+
+  try{ await checkPendingAlerts(); }catch(e){ console.warn('checkPendingAlerts failed:', e); }
+
+  subscribeApprovals();
+  if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
+
+  // Only mark offline on real page close, not refresh
+  let isRefreshing = false;
+  window.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key==='r') isRefreshing=true; });
+  window.addEventListener('beforeunload', ()=>{ if(!isRefreshing){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } });
+  window.addEventListener('pagehide', e=>{ if(!e.persisted){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
 }
 
 // Run on page load

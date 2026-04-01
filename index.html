@@ -389,9 +389,9 @@ let unsubNotifs = null;
 
 function saveNotifs(){ localStorage.setItem('dpwt_notifs', JSON.stringify(notifications.slice(0,50))); }
 
-function addNotif(msg, type='info'){
-  notifications.unshift({msg, type, time: nowTime(), date: new Date().toLocaleDateString('tr-TR'), id: Date.now()});
-  saveNotifs(); updateNotifBadge(); showInAppNotif(msg, type);
+function addNotif(msg, type='info', dept='', icon='🔔'){
+  notifications.unshift({msg, type, dept, icon, time: nowTime(), date: new Date().toLocaleDateString('tr-TR'), id: Date.now()});
+  saveNotifs(); updateNotifBadge(); showInAppNotif(msg, type, dept, icon);
 }
 
 function updateNotifBadge(){
@@ -412,11 +412,14 @@ function updateNotifBadge(){
   }
 }
 
-function showInAppNotif(msg, type='info'){
+function showInAppNotif(msg, type='info', dept='', icon='🔔'){
   const colors = {info:'#60a5fa', success:'#4ade80', admin:'#fbbf24'};
   const t = document.createElement('div');
-  t.style.cssText = `position:fixed;top:70px;right:16px;z-index:9999;background:#1e221e;border:1px solid ${colors[type]||colors.info};color:#e8ebe6;padding:10px 16px;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;animation:fadeUp .3s ease;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,.4)`;
-  t.textContent = '🔔 ' + msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 4000);
+  t.style.cssText = `position:fixed;top:70px;right:16px;z-index:9999;background:#1e221e;border:1px solid ${colors[type]||colors.info};color:#e8ebe6;padding:10px 16px 12px;border-radius:12px;font-size:13px;font-family:'DM Sans',sans-serif;animation:fadeUp .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);cursor:pointer`;
+  t.innerHTML = `${dept?`<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px">📌 ${dept} Departmanı</div>`:''}
+    <div style="display:flex;align-items:flex-start;gap:8px"><span>${icon}</span><span>${msg}</span></div>`;
+  t.onclick = ()=>{ t.remove(); document.getElementById('notif-btn').click(); };
+  document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.remove(); }, 5000);
 }
 
 function subscribeNotifs(){
@@ -445,9 +448,15 @@ function renderNotifPanel(){
   if(!notifications.length){ list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div>'; return; }
   notifications.forEach(n=>n.seen=true); saveNotifs(); updateNotifBadge();
   list.innerHTML = notifications.map(n=>`
-    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;color:var(--text)">${n.msg}</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:3px">${n.date} ${n.time}</div>
+    <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      ${n.dept?`<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px">📌 ${n.dept} Departmanı</div>`:''}
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:16px">${n.icon||'🔔'}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text);line-height:1.4">${n.msg}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">${n.date} ${n.time}</div>
+        </div>
+      </div>
     </div>`).join('');
 }
 
@@ -508,7 +517,7 @@ async function checkPendingAlerts(){
       // Show first one
       if(!bigNotifShowing && bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
       // Update notif badge
-      pending.forEach(a=>addNotif(a.title+(a.body?' — '+a.body:''),'admin'));
+      pending.forEach(a=>addNotif(a.title+(a.body?' — '+a.body:''),'admin', a.targetDept||'', a.type==='note'?'📝':'✅'));
     }
   }catch(e){ console.error('checkPendingAlerts error',e); }
 }
@@ -528,7 +537,7 @@ function subscribeAlerts(){
           if(!getSeenAlerts().includes(id)){
             markAlertSeen(id);
             showBigNotif({id,...data});
-            addNotif(data.title+(data.body?' — '+data.body:''),'admin');
+            addNotif(data.title+(data.body?' — '+data.body:''),'admin', data.targetDept||'', data.type==='note'?'📝':'✅');
           }
         }
       }

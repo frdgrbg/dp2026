@@ -121,6 +121,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <label>ADMİN ŞİFRESİ</label>
       <input type="password" id="login-pw" placeholder="Şifreyi girin" />
     </div>
+    <div id="admin-request-field" style="display:none;margin-bottom:14px">
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--amber);text-align:center">
+        ⚠️ Admin olmak için onay gereklidir.<br>Onay isteği gönderin, yetkili kişi onayladıktan sonra giriş yapabilirsiniz.
+      </div>
+      <button class="btn-primary" id="request-admin-btn" style="background:rgba(251,191,36,.2);color:var(--amber);border:1px solid rgba(251,191,36,.4);margin-top:8px">Admin Onayı İste →</button>
+    </div>
     <button class="btn-primary" id="login-btn">Giriş Yap →</button>
     <div class="login-hint">taoperation.com — National Golf Club</div>
   </div>
@@ -135,6 +141,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <span class="topbar-title">National Golf Club</span>
     </div>
     <div class="topbar-right">
+      <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative">👥 Onaylar<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
       <button id="notif-btn" class="btn-sm" style="position:relative">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
       <button id="admin-btn" class="btn-sm amber" style="display:none">⚙️ Admin</button>
       <button class="btn-sm green" id="pdf-btn">PDF Rapor</button>
@@ -193,6 +200,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<!-- Admin Onay Modal -->
+<div class="modal-overlay" id="approval-modal">
+  <div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:14px;font-weight:600;color:var(--amber)">⚙️ Admin Onay İstekleri</span>
+      <button class="btn-sm" id="approval-close">✕ Kapat</button>
+    </div>
+    <div id="approval-list"></div>
+  </div>
+</div>
+
 <!-- Sub Modal -->
 <div class="modal-overlay" id="sub-modal">
   <div class="modal" id="sub-modal-body"></div>
@@ -213,6 +231,10 @@ const firebaseConfig = {
 };
 
 const ADMIN_PASS = "N2026";
+const SUPER_ADMIN = "Ferdi Gürboğa"; // sadece bu kişi onay verebilir
+let approvedAdmins = []; // Firebase'den gelecek
+const isApprovedAdmin = name => approvedAdmins.includes(name) || name === SUPER_ADMIN;
+const isSuperAdmin = name => name === SUPER_ADMIN;
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -400,10 +422,70 @@ function renderNotifPanel(){
     </div>`).join('');
 }
 
+// ── Admin Whitelist System ──
+let unsubApprovals = null;
+
+async function loadApprovedAdmins(){
+  try{
+    const snap = await getDocs(collection(db,'admin_whitelist'));
+    approvedAdmins = snap.docs.map(d=>d.data().name);
+  }catch(e){}
+}
+
+function subscribeApprovals(){
+  unsubApprovals = onSnapshot(collection(db,'admin_whitelist'), snap => {
+    approvedAdmins = snap.docs.map(d=>d.data().name);
+  });
+}
+
+async function renderApprovalList(){
+  const snap = await getDocs(collection(db,'admin_whitelist'));
+  const list = document.getElementById('approval-list');
+  const admins = snap.docs.map(d=>({id:d.id,...d.data()}));
+  list.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Admin Listesi</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="new-admin-name" placeholder="Ad Soyad girin" style="flex:1;padding:8px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;outline:none"/>
+        <button class="btn-sm green" id="add-admin-btn">+ Ekle</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${admins.length} kişi admin yetkisine sahip</div>
+    ${admins.map(a=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500">${a.name}</div>
+          <div style="font-size:11px;color:var(--text3)">Ekleyen: ${a.addedBy||'—'} · ${a.time||''}</div>
+        </div>
+        <button class="btn-sm remove-admin-btn" data-id="${a.id}" data-name="${a.name}" style="font-size:11px;color:#f87171;border-color:#f87171">Kaldır</button>
+      </div>`).join('')}
+  `;
+  document.getElementById('add-admin-btn').addEventListener('click', async()=>{
+    const name = document.getElementById('new-admin-name').value.trim();
+    if(!name){ toast('Ad girin','error'); return; }
+    if(approvedAdmins.includes(name)){ toast('Bu kişi zaten listede','error'); return; }
+    const id = name.replace(/\s/g,'_')+'_admin';
+    await setDoc(doc(db,'admin_whitelist',id),{name,addedBy:currentUser.name,time:nowTime()});
+    toast(name+' admin listesine eklendi ✓','success');
+    renderApprovalList();
+  });
+  list.querySelectorAll('.remove-admin-btn').forEach(btn=>btn.addEventListener('click', async()=>{
+    await deleteDoc(doc(db,'admin_whitelist',btn.dataset.id));
+    toast(btn.dataset.name+' listeden kaldırıldı','info');
+    renderApprovalList();
+  }));
+}
+
+async function updateApprovalBadge(){
+  const btn = document.getElementById('approval-btn');
+  if(btn && isSuperAdmin(currentUser?.name)) btn.style.display='inline-flex';
+}
+
 // ── Login / Logout ──
 document.getElementById('login-dept').addEventListener('change', function(){
   const isAdm = this.value === 'Admin';
   document.getElementById('pw-field').style.display = isAdm ? 'block' : 'none';
+  document.getElementById('admin-request-field').style.display = 'none';
   if(!isAdm) document.getElementById('login-pw').value = '';
 });
 
@@ -414,6 +496,10 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   if(dept === 'Admin'){
     const pw = document.getElementById('login-pw').value;
     if(pw !== ADMIN_PASS){ toast('Admin şifresi hatalı!','error'); return; }
+    await loadApprovedAdmins();
+    if(!isApprovedAdmin(name)){
+      toast('Admin girişi için onayınız bulunmuyor. Ferdi Gürboğa ile iletişime geçin.','error'); return;
+    }
   }
   const btn = document.getElementById('login-btn');
   btn.textContent = 'Bağlanıyor...'; btn.disabled = true;
@@ -431,17 +517,21 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     if(isAdmin()) document.getElementById('admin-btn').style.display = 'inline-flex';
     toast('Bağlandı ✓','success');
     subscribeNotifs();
+    await loadApprovedAdmins();
+    subscribeApprovals();
+    if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
     window.addEventListener('beforeunload', () => fbDelUser(currentUser.name));
   }catch(e){ toast('Bağlantı hatası: '+e.message,'error'); btn.textContent='Giriş Yap →'; btn.disabled=false; }
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await fbDelUser(currentUser.name);
-  if(unsubTasks) unsubTasks(); if(unsubUsers) unsubUsers(); if(unsubSections) unsubSections();
+  if(unsubTasks) unsubTasks(); if(unsubUsers) unsubUsers(); if(unsubSections) unsubSections(); if(unsubApprovals) unsubApprovals(); if(unsubNotifs) unsubNotifs();
   currentUser=null; state={}; onlineUsers={};
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app-screen').style.display='none';
   document.getElementById('admin-btn').style.display='none';
+  document.getElementById('approval-btn').style.display='none';
   document.getElementById('login-btn').textContent='Giriş Yap →';
   document.getElementById('login-btn').disabled=false;
   document.getElementById('login-dept').value='';
@@ -583,6 +673,9 @@ document.getElementById('admin-close').addEventListener('click', ()=>document.ge
 document.getElementById('notif-btn').addEventListener('click', ()=>{ renderNotifPanel(); document.getElementById('notif-modal').classList.add('open'); });
 document.getElementById('notif-close').addEventListener('click', ()=>document.getElementById('notif-modal').classList.remove('open'));
 document.getElementById('notif-clear').addEventListener('click', ()=>{ notifications=[]; saveNotifs(); updateNotifBadge(); renderNotifPanel(); });
+
+document.getElementById('approval-btn').addEventListener('click', ()=>{ renderApprovalList(); document.getElementById('approval-modal').classList.add('open'); });
+document.getElementById('approval-close').addEventListener('click', ()=>document.getElementById('approval-modal').classList.remove('open'));
 
 function openAdmin(){ renderAdminPanel(); document.getElementById('admin-modal').classList.add('open'); }
 

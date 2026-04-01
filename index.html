@@ -488,58 +488,76 @@ let lastNotifTs = Date.now();
 // ── Persistent Alert System ──
 // Alerts stored in Firebase permanently, each user tracks what they've seen via localStorage
 
-function getSeenAlerts(){ return JSON.parse(localStorage.getItem('dpwt_seen_alerts')||'[]'); }
-function markAlertSeen(id){ const seen=getSeenAlerts(); if(!seen.includes(id)){ seen.push(id); localStorage.setItem('dpwt_seen_alerts', JSON.stringify(seen.slice(-200))); } }
+// ── Alert seen tracking (per device via localStorage) ──
+function getSeenAlerts(){ 
+  return new Set(JSON.parse(localStorage.getItem('dpwt_seen_alerts')||'[]')); 
+}
+function markAlertSeen(id){ 
+  const seen = getSeenAlerts(); 
+  seen.add(id); 
+  localStorage.setItem('dpwt_seen_alerts', JSON.stringify([...seen].slice(-300)));
+}
+function isAlertSeen(id){ return getSeenAlerts().has(id); }
+
+function matchesMyDept(targetDept){
+  if(!targetDept) return true; // broadcast to all
+  if(currentUser?.dept === 'Admin') return true;
+  return targetDept === currentUser?.dept;
+}
+
+function processAlert(id, data){
+  if(isAlertSeen(id)) return;
+  if(data.by === currentUser?.name) return; // don't show own alerts
+  if(!matchesMyDept(data.targetDept)) return;
+  markAlertSeen(id);
+  addNotif(
+    data.title + (data.body ? ' — ' + data.body : ''),
+    'admin',
+    data.targetDept || '',
+    data.type === 'note' ? '📝' : '✅'
+  );
+  bigNotifQueue.push({id, ...data});
+  if(!bigNotifShowing && bigNotifQueue.length > 0) showBigNotif(bigNotifQueue.shift());
+}
 
 async function checkPendingAlerts(){
-  // Called on login - fetch all unseen alerts for this user's dept
   try{
     const snap = await getDocs(collection(db,'alerts'));
-    const seen = getSeenAlerts();
     const pending = [];
-    snap.forEach(d=>{
-      const data=d.data();
-      const id=d.id;
-      if(seen.includes(id)) return;
+    snap.forEach(d => {
+      const data = d.data();
+      const id = d.id;
+      if(isAlertSeen(id)) return;
       if(data.by === currentUser?.name) return;
-      const myDept = currentUser?.dept;
-      if(!data.targetDept || data.targetDept===myDept || myDept==='Admin'){
-        pending.push({id,...data});
-      }
+      if(!matchesMyDept(data.targetDept)) return;
+      pending.push({id, ...data});
     });
-    // Sort by ts, show newest last (so newest appears on top)
-    pending.sort((a,b)=>(a.ts||0)-(b.ts||0));
-    // Mark all as seen first
-    pending.forEach(a=>markAlertSeen(a.id));
-    // Queue them for display
-    if(pending.length>0){
-      pending.forEach(a=>bigNotifQueue.push(a));
-      // Show first one
-      if(!bigNotifShowing && bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
-      // Update notif badge
-      pending.forEach(a=>addNotif(a.title+(a.body?' — '+a.body:''),'admin', a.targetDept||'', a.type==='note'?'📝':'✅'));
-    }
-  }catch(e){ console.error('checkPendingAlerts error',e); }
+    pending.sort((a,b) => (a.ts||0) - (b.ts||0));
+    pending.forEach(a => {
+      markAlertSeen(a.id);
+      addNotif(
+        a.title + (a.body ? ' — ' + a.body : ''),
+        'admin',
+        a.targetDept || '',
+        a.type === 'note' ? '📝' : '✅'
+      );
+      bigNotifQueue.push(a);
+    });
+    if(!bigNotifShowing && bigNotifQueue.length > 0) showBigNotif(bigNotifQueue.shift());
+  }catch(e){ console.error('checkPendingAlerts:', e); }
 }
 
 function subscribeAlerts(){
-  // Listen for NEW alerts added after login
-  const loginTs = Date.now();
-  onSnapshot(collection(db,'alerts'), snap=>{
-    snap.docChanges().forEach(change=>{
-      if(change.type==='added'){
-        const data=change.doc.data();
-        const id=change.doc.id;
-        if(!data.ts || data.ts < loginTs - 3000) return; // skip old
-        if(data.by === currentUser?.name) return;
-        const myDept = currentUser?.dept;
-        if(!data.targetDept || data.targetDept===myDept || myDept==='Admin'){
-          if(!getSeenAlerts().includes(id)){
-            markAlertSeen(id);
-            showBigNotif({id,...data});
-            addNotif(data.title+(data.body?' — '+data.body:''),'admin', data.targetDept||'', data.type==='note'?'📝':'✅');
-          }
-        }
+  // Only catches NEW alerts added AFTER login
+  let initialized = false;
+  onSnapshot(collection(db,'alerts'), snap => {
+    if(!initialized){ 
+      initialized = true; 
+      return; // skip initial load — handled by checkPendingAlerts
+    }
+    snap.docChanges().forEach(change => {
+      if(change.type === 'added'){
+        processAlert(change.doc.id, change.doc.data());
       }
     });
   });

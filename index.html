@@ -1017,20 +1017,34 @@ async function renderUsersList(){
       list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz kayıtlı kullanıcı yok</div>';
       return;
     }
-    list.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">' + users.length + ' kayıtlı kullanıcı</div>' +
-      users.map(u =>
-        '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">' +
-          '<div style="width:36px;height:36px;border-radius:50%;background:' + (u.color||'#4ade80') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + (u.initials||'?') + '</div>' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:13px;font-weight:500;color:var(--text)">' + u.name + '</div>' +
-            '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + u.dept + '</div>' +
-          '</div>' +
-          '<div style="text-align:right;flex-shrink:0">' +
-            (u.phone ? '<div style="font-size:12px;color:var(--blue);font-family:DM Mono,monospace">' + u.phone + '</div>' : '<div style="font-size:11px;color:var(--text3)">Numara yok</div>') +
-            '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + (u.online ? '🟢 Çevrimiçi' : '⚫ Çevrimdışı') + '</div>' +
-          '</div>' +
-        '</div>'
-      ).join('');
+    const rows = users.map(u => {
+      const key = u.name.replace(/\s/g,'_');
+      return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:' + (u.color||'#4ade80') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + (u.initials||'?') + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:500;color:var(--text)">' + u.name + '</div>' +
+          '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + u.dept + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;margin-right:8px">' +
+          (u.phone ? '<div style="font-size:12px;color:var(--blue);font-family:DM Mono,monospace">' + u.phone + '</div>' : '<div style="font-size:11px;color:var(--text3)">Numara yok</div>') +
+          '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + (u.online ? '🟢 Çevrimiçi' : '⚫ Çevrimdışı') + '</div>' +
+        '</div>' +
+        '<button class="del-user-btn btn-sm" data-key="' + key + '" data-name="' + u.name + '" style="flex-shrink:0;color:#f87171;border-color:#f87171;padding:4px 8px;font-size:11px">🗑️</button>' +
+      '</div>';
+    });
+    list.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">' + users.length + ' kayıtlı kullanıcı</div>' + rows.join('');
+
+    list.querySelectorAll('.del-user-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.name;
+        if(!confirm(name + ' kullanıcısını listeden silmek istiyor musunuz?')) return;
+        try{
+          await deleteDoc(doc(db,'users', btn.dataset.key));
+          toast(name + ' silindi','info');
+          renderUsersList();
+        }catch(e){ toast('Silinemedi: '+e.message,'error'); }
+      });
+    });
   }catch(e){ console.error(e); }
 }
 

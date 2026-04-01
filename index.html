@@ -956,12 +956,16 @@ function renderSection(c,sid){
     priorityFilter = btn.dataset.pri;
     renderContent();
   }));
-  c.querySelectorAll('.pri-select').forEach(sel=>sel.addEventListener('change', async(e)=>{
-    e.stopPropagation();
-    await setPriority(sel.dataset.k, sel.value);
-  }));
+  c.querySelectorAll('.pri-select').forEach(sel=>{
+    sel.addEventListener('click', e=>e.stopPropagation());
+    sel.addEventListener('change', async(e)=>{
+      e.stopPropagation();
+      await setPriority(sel.dataset.k, sel.value);
+      toast('Öncelik güncellendi ✓','success');
+    });
+  });
   c.querySelectorAll('.dept-header').forEach(el=>el.addEventListener('click',()=>{ const dk=el.dataset.dk; const body=document.getElementById('db-'+dk); const open=body.style.display!=='none'; body.style.display=open?'none':'block'; deptOpen[dk]=!open; }));
-  c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click', async(e)=>{ if(e.target.closest('.note-btn')) return; const k=el.dataset.k; const sid=el.dataset.sid; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
+  c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click', async(e)=>{ if(e.target.closest('.note-btn')) return; if(e.target.closest('.pri-select')) return; const k=el.dataset.k; const sid=el.dataset.sid; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
   c.querySelectorAll('.note-btn').forEach(el=>el.addEventListener('click', e=>{
     e.stopPropagation();
     const nk=el.dataset.nk;

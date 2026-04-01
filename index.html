@@ -1137,19 +1137,105 @@ document.getElementById('pdf-download').addEventListener('click',()=>{
   const inclDone=document.getElementById('pdf-done').checked;
   const inclPending=document.getElementById('pdf-pending').checked;
   const ts=document.getElementById('pdf-timestamp').checked;
-  let txt=`TURKISH AIRLINES DP WORLD TOUR 2026\nNATIONAL GOLF CLUB — OPERASYON RAPORU\n`;
-  if(ts) txt+=`Tarih: ${new Date().toLocaleString('tr-TR')}\n`;
-  txt+=`Hazırlayan: ${currentUser.name} (${currentUser.dept})\n${'─'.repeat(50)}\n\n`;
-  const{done,total}=globalStats();
-  txt+=`GENEL DURUM: ${done}/${total} görev tamamlandı (%${Math.round(done/total*100)})\n\n`;
-  SECTIONS.forEach(s=>{ const{done:d,total:t}=secStats(s.id); txt+=`${s.title.toUpperCase()} [${d}/${t}]\n`;
-    s.tasks.forEach(dept=>dept.items.forEach((item,i)=>{ const k=taskKey(s.id,dept.d,i); const isDone=state[k]?.done;
-      if((isDone&&inclDone)||(!isDone&&inclPending)) txt+=`  ${isDone?'✓':'○'} [${dept.d}] ${item}${isDone?` (${state[k].who}, ${state[k].time||''})`:''}\n`;
-    })); txt+='\n';
+  const {done,total}=globalStats();
+  const pct=total?Math.round(done/total*100):0;
+  const day=tournDays.find(d=>d.id===activeDay);
+
+  let html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>DP World Tour 2026 Rapor</title><style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f0;color:#1a1a1a;padding:20px}
+    .header{background:linear-gradient(135deg,#0d1f0d,#1a3d1a);color:white;padding:24px 28px;border-radius:12px;margin-bottom:16px}
+    .header h1{font-size:18px;font-weight:700;margin-bottom:4px}
+    .header p{font-size:12px;opacity:.8;margin-top:2px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .stat{background:white;border-radius:10px;padding:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .stat .val{font-size:26px;font-weight:700;margin-bottom:2px}
+    .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#888}
+    .stat.g .val{color:#16a34a}.stat.r .val{color:#dc2626}.stat.a .val{color:#d97706}.stat.b .val{color:#2563eb}
+    .pbar{background:white;border-radius:10px;padding:14px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .pbar h3{font-size:12px;font-weight:600;margin-bottom:8px;color:#555}
+    .track{background:#e5e7eb;border-radius:6px;height:10px;overflow:hidden}
+    .fill{height:10px;border-radius:6px;background:linear-gradient(90deg,#16a34a,#4ade80)}
+    .sec{background:white;border-radius:10px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .sh{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;background:#f8fdf8;border-bottom:2px solid #dcfce7}
+    .st{font-size:14px;font-weight:700}
+    .sb{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:#dcfce7;color:#16a34a}
+    .dh{padding:7px 15px;background:#fafafa;border-bottom:1px solid #eee;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}
+    .ti{display:flex;align-items:flex-start;gap:9px;padding:8px 15px;border-bottom:1px solid #fafafa}
+    .ti:last-child{border-bottom:none}
+    .td{background:#f0fdf4}.tp{background:#fff5f5}
+    .ck{width:17px;height:17px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;margin-top:1px}
+    .ck-d{background:#16a34a;color:white}.ck-p{background:#fee2e2;border:2px solid #dc2626;color:#dc2626}
+    .tt{flex:1;font-size:12px;line-height:1.4}
+    .tt-d{color:#15803d;font-weight:500}.tt-p{color:#b91c1c}
+    .tw{font-size:10px;color:#16a34a;margin-top:2px}
+    .nt{font-size:10px;color:#92400e;background:#fffbeb;padding:3px 7px;border-radius:4px;margin-top:3px;border-left:3px solid #fbbf24}
+    .foot{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb}
+    @media print{body{background:white;padding:0}.sec{box-shadow:none;border:1px solid #eee}}
+  </style></head><body>`;
+
+  html+=`<div class="header">
+    <h1>✈️ TURKISH AIRLINES DP WORLD TOUR 2026</h1>
+    <p>National Golf Club — Operasyon Raporu</p>
+    ${day?`<p>${day.label}: ${day.desc} — ${new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})}</p>`:''}
+    ${ts?`<p>Rapor Tarihi: ${new Date().toLocaleString('tr-TR')}</p>`:''}
+    <p>Hazirlayan: ${currentUser.name} (${currentUser.dept})</p>
+  </div>
+  <div class="stats">
+    <div class="stat g"><div class="val">%${pct}</div><div class="lbl">Tamamlanan</div></div>
+    <div class="stat b"><div class="val">${done}</div><div class="lbl">Yapildi</div></div>
+    <div class="stat r"><div class="val">${total-done}</div><div class="lbl">Bekliyor</div></div>
+    <div class="stat a"><div class="val">${SECTIONS.length}</div><div class="lbl">Alan</div></div>
+  </div>
+  <div class="pbar"><h3>Genel Ilerleme: ${done} / ${total} gorev</h3>
+    <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+  </div>`;
+
+  SECTIONS.forEach(s=>{
+    const {done:d,total:t}=secStats(s.id);
+    let sHtml=''; let hasContent=false;
+    s.tasks.forEach(dept=>{
+      let dHtml='';
+      dept.items.forEach((item,i)=>{
+        const k=taskKey(s.id,dept.d,i);
+        const isDone=state[k]?.done;
+        const nk='note__'+fbKey(k);
+        const note=state[nk]?.text||'';
+        if((isDone&&inclDone)||(!isDone&&inclPending)){
+          hasContent=true;
+          dHtml+=`<div class="ti ${isDone?'td':'tp'}">
+            <div class="ck ${isDone?'ck-d':'ck-p'}">${isDone?'✓':'✕'}</div>
+            <div style="flex:1">
+              <div class="tt ${isDone?'tt-d':'tt-p'}">${item}</div>
+              ${isDone&&state[k]?.who?`<div class="tw">✓ ${state[k].who} — ${state[k].time||''}</div>`:''}
+              ${note?`<div class="nt">📝 ${note}</div>`:''}
+            </div>
+          </div>`;
+        }
+      });
+      if(dHtml) sHtml+=`<div class="dh">${dept.d}</div>${dHtml}`;
+    });
+    if(hasContent){
+      const sp=t?Math.round(d/t*100):0;
+      html+=`<div class="sec"><div class="sh">
+        <div class="st">${s.ico} ${s.title}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:70px;background:#e5e7eb;border-radius:3px;height:5px"><div style="width:${sp}%;background:#16a34a;height:5px;border-radius:3px"></div></div>
+          <span class="sb">${d}/${t}</span>
+        </div>
+      </div>${sHtml}</div>`;
+    }
   });
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'}));
-  a.download=`dpwt2026_${new Date().toISOString().slice(0,10)}.txt`; a.click();
+
+  html+=`<div class="foot">DP World Tour 2026 — taoperation.com — ${new Date().toLocaleDateString('tr-TR')}</div></body></html>`;
+
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='dpwt2026_rapor_'+new Date().toISOString().slice(0,10)+'.html';
+  a.click();
   document.getElementById('pdf-modal').classList.remove('open');
+  toast('Rapor indirildi — tarayicida acip yazdirilabilir','success');
 });
 
 // ── Admin Panel ──

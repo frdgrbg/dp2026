@@ -150,6 +150,7 @@ if('serviceWorker' in navigator){
     <div class="topbar-right">
       <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative;white-space:nowrap">👥<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
       <button id="notif-btn" class="btn-sm" style="position:relative;white-space:nowrap">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="daily-btn" class="btn-sm" style="white-space:nowrap;color:var(--amber);border-color:rgba(251,191,36,.4);position:relative">✅ Günlük<span id="daily-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">!</span></button>
       <button id="day-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--green);border-color:var(--green2)">📅</button>
       <button id="users-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--blue);border-color:var(--blue)">👥</button>
       <button id="admin-btn" class="btn-sm amber" style="display:none;white-space:nowrap">⚙️</button>
@@ -207,6 +208,26 @@ if('serviceWorker' in navigator){
       </div>
     </div>
     <div id="notif-list"><div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div></div>
+  </div>
+</div>
+
+<!-- Daily Checks Modal -->
+<div class="modal-overlay" id="daily-modal">
+  <div class="modal" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--amber)">✅ Günlük Kontrol Listesi</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="daily-day-label"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="font-size:12px;font-family:DM Mono,monospace;color:var(--green)" id="daily-progress-label"></div>
+        <button class="btn-sm" id="daily-close">✕</button>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div class="prog-track"><div class="prog-fill" id="daily-prog-fill" style="width:0%"></div></div>
+    </div>
+    <div id="daily-content" style="overflow-y:auto;padding:16px;flex:1"></div>
   </div>
 </div>
 
@@ -363,6 +384,103 @@ const DEFAULT_SECTIONS = [
 ];
 
 let SECTIONS = JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
+// ── Günlük Kontrol Listesi ──
+const DAILY_CHECKS = [
+  {id:'ofis', ico:'🏢', title:'Turnuva Ofisleri', dept:'Teknik', items:[
+    'Tüm bilgisayar ve ekranlar açık ve çalışır durumda',
+    'İnternet bağlantısı aktif',
+    'Klima çalışıyor, sıcaklık ayarlı',
+    'Yazıcı hazır ve mürekkep/kağıt yeterli',
+    'Çöpler boşaltıldı',
+    'Kahve makinesi hazır, su stoku yeterli',
+  ]},
+  {id:'fizyoterapi_daily', ico:'💆', title:'Fizyoterapi', dept:'HK', items:[
+    'Havlu stoku kontrol edildi ve yenilendit',
+    'Kullanılmış havlular toplandı',
+    'Su ve bisküvi stoku yeterli',
+    'Klima sıcaklığı kontrol edildi',
+    'Terlik stoku yeterli',
+    'Masa ve tedavi alanı dezenfekte edildi',
+  ]},
+  {id:'doktor_daily', ico:'🏥', title:'Doktor Odası', dept:'Ambulans', items:[
+    'AED (kalp şok cihazı) pil seviyesi kontrol edildi',
+    'İlaç dolabı kontrol edildi',
+    'Son kullanma tarihleri kontrol edildi',
+    'Dezenfektan stoku yeterli',
+    'Steril malzeme stoku kontrol edildi',
+    'Acil aydınlatma çalışıyor',
+    'Ambulans hazır ve yakıt dolu',
+  ]},
+  {id:'spor_daily', ico:'🏋️', title:'Spor Salonu', dept:'HK', items:[
+    'Zemin temizliği yapıldı',
+    'Ekipmanlar çalışıyor ve temiz',
+    'Havlu değişimi yapıldı',
+    'Su ve protein bar stoku yeterli',
+    'TV çalışıyor',
+    'Klima çalışıyor',
+  ]},
+  {id:'bagstore_daily', ico:'🎒', title:'Bag Store', dept:'Resepsiyon', items:[
+    'Günlük oyuncu listesi güncellendi',
+    'Bag tag'ler hazırlandı',
+    'Askı düzeni kontrol edildi',
+    'Kayıp/kayıt sorunu yok',
+  ]},
+  {id:'locker_daily', ico:'🔐', title:'Locker Room', dept:'HK', items:[
+    'Sabah genel temizlik yapıldı',
+    'Duş ve tuvalet temizlendi',
+    'Sabun/şampuan/dezenfektan stoku yeterli',
+    'Sıcak su çalışıyor',
+    'Havlu değişimi yapıldı',
+    'Kişisel bakım kiti stoku kontrol edildi',
+    'Kayıp anahtar şikayeti yok',
+  ]},
+  {id:'playerslounge_daily', ico:'🛋️', title:'Players Lounge', dept:'F&B', items:[
+    'Büfe dolduruldu ve düzenlendi',
+    'Menü tazeliği kontrol edildi',
+    'Servis sıcaklığı uygun',
+    'Masa ve sandalye düzeni sağlandı',
+    'Dergi/gazete yenilendi',
+    'Çay/kahve servisi hazır',
+  ]},
+  {id:'caddy_daily', ico:'⛳', title:'Caddy Lounge & Range', dept:'Range Operasyon', items:[
+    'Sabah top sayımı yapıldı',
+    'Kirli toplar temizlendi ve ayrıştırıldı',
+    'Piramit düzeni kontrol edildi',
+    'Tuvalet sabah temizliği yapıldı',
+    'Tuvalet öğle kontrolü yapıldı',
+    'Büfe hazır ve stok yeterli',
+    'Çöpler boşaltıldı',
+  ]},
+  {id:'saha_daily', ico:'🏌️', title:'Saha Operasyon', dept:'Promoter', items:[
+    'Hole sign'lar yerinde ve düzgün',
+    'Bayraklar düzgün dikilmiş',
+    'Sponsor tabelaları yerinde',
+    'Seyirci alanları güvenli',
+    'Boardlar güncel bilgiyle güncellendi',
+    'Yürüyüş yolları temiz ve engelsiz',
+  ]},
+  {id:'tvcompound_daily', ico:'📺', title:'TV Compound', dept:'Teknik', items:[
+    'İnternet hız testi yapıldı (min 50Mbps)',
+    'Tüm internet podları aktif',
+    'Yayın bağlantısı test edildi',
+    'Çevre temizliği yapıldı',
+    'Ekipman soğutması çalışıyor',
+  ]},
+  {id:'koy_daily', ico:'🏘️', title:'Turnuva Köyü', dept:'Muhasebe & Cost', items:[
+    'Kasa açılışı yapıldı ve sayıldı',
+    'Sabah genel alan temizliği yapıldı',
+    '2. saat alan temizliği yapıldı',
+    '4. saat alan temizliği yapıldı',
+    'Giriş kontrolü aktif',
+    'Akreditasyon sorun yok',
+    'Fast food malzeme stoku kontrol edildi',
+    'Proshop açık ve hazır',
+    'Kasa kapanış sayımı yapıldı',
+  ]},
+];
+
+let activeDailyDay = localStorage.getItem('dpwt_daily_day') || 'day1';
+
 
 // Turnuva günleri (Admin ayarlayabilir)
 const DEFAULT_DAYS = [
@@ -469,7 +587,10 @@ function subscribeAll(){
     }
   });
   unsubTasks = onSnapshot(collection(db,'tasks'), snap => {
-    state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent();
+    state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent(); updateDailyBadge();
+    // Refresh daily modal if open
+    if(!document.getElementById('daily-modal').classList.contains('open')) return;
+    renderDailyModal();
   });
   unsubUsers = onSnapshot(collection(db,'users'), snap => {
     onlineUsers={}; snap.forEach(d=>{ const x=d.data(); onlineUsers[x.name]=x; }); renderOnlineBar();
@@ -789,6 +910,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     await loadTournDays();
     renderTopDay();
     subscribePriorities();
+    updateDailyBadge();
     startHeartbeat();
     subscribeNotifs();
     subscribeAlerts();
@@ -1318,10 +1440,106 @@ async function renderUsersList(){
   }catch(e){ console.error(e); }
 }
 
+document.getElementById('daily-btn').addEventListener('click', ()=>{ renderDailyModal(); document.getElementById('daily-modal').classList.add('open'); });
+document.getElementById('daily-close').addEventListener('click', ()=>document.getElementById('daily-modal').classList.remove('open'));
 document.getElementById('day-btn').addEventListener('click', ()=>{ renderDaySettings(); document.getElementById('day-modal').classList.add('open'); });
 document.getElementById('day-modal-close').addEventListener('click', ()=>document.getElementById('day-modal').classList.remove('open'));
 document.getElementById('users-btn').addEventListener('click', ()=>{ renderUsersList(); document.getElementById('users-modal').classList.add('open'); });
 document.getElementById('users-close').addEventListener('click', ()=>document.getElementById('users-modal').classList.remove('open'));
+
+
+// ── Daily Checks System ──
+function dailyKey(checkId, itemIdx){
+  return 'daily__' + activeDay + '__' + checkId + '__' + itemIdx;
+}
+function fbDailyKey(k){ return k.replace(/[|]/g,'__').replace(/__/g,'_'); }
+
+function getDailyStats(){
+  let done=0, total=0;
+  DAILY_CHECKS.forEach(sec=>{
+    sec.items.forEach((_,i)=>{
+      total++;
+      if(state[dailyKey(sec.id,i)]?.done) done++;
+    });
+  });
+  return {done,total};
+}
+
+function updateDailyBadge(){
+  const {done,total} = getDailyStats();
+  const badge = document.getElementById('daily-badge');
+  if(badge) badge.style.display = done < total ? 'block' : 'none';
+}
+
+async function toggleDailyItem(k){
+  try{
+    if(state[k]?.done){
+      await deleteDoc(doc(db,'tasks',fbDailyKey(k)));
+    } else {
+      await setDoc(doc(db,'tasks',fbDailyKey(k)),{key:k,done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()});
+    }
+  }catch(e){ toast('Hata: '+e.message,'error'); }
+}
+
+function renderDailyModal(){
+  const {done,total} = getDailyStats();
+  const pct = total ? Math.round(done/total*100) : 0;
+  const day = tournDays.find(d=>d.id===activeDay);
+
+  const label = document.getElementById('daily-day-label');
+  if(label) label.textContent = (day?.label||'') + ' — ' + (day?.date ? new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}) : '');
+
+  const progLabel = document.getElementById('daily-progress-label');
+  if(progLabel) progLabel.textContent = done+'/'+total+' ('+pct+'%)';
+
+  const fill = document.getElementById('daily-prog-fill');
+  if(fill) fill.style.width = pct+'%';
+
+  const c = document.getElementById('daily-content');
+  let h = '';
+
+  // Filter by current user's dept if not admin
+  const myDept = currentUser?.dept;
+  const filtered = isAdmin() ? DAILY_CHECKS : DAILY_CHECKS.filter(s=>s.dept===myDept);
+
+  if(!filtered.length){
+    h = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px">Departmanınıza ait günlük kontrol yok</div>';
+    c.innerHTML = h; return;
+  }
+
+  filtered.forEach(sec=>{
+    const col = getDeptColor(sec.dept);
+    const secDone = sec.items.filter((_,i)=>state[dailyKey(sec.id,i)]?.done).length;
+    h += `<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">${sec.ico}</span>
+          <span style="font-size:13px;font-weight:600;color:${col.text}">${sec.title}</span>
+        </div>
+        <span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span>
+      </div>
+      <div>`;
+    sec.items.forEach((item,i)=>{
+      const k = dailyKey(sec.id,i);
+      const s = state[k]; const isDone = s?.done;
+      h += `<div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}">
+        <div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">
+          ${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+        </div>
+        <span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${item}</span>
+        ${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${s.who} ${s.time||''}</span>`:''}
+      </div>`;
+    });
+    h += `</div></div>`;
+  });
+
+  c.innerHTML = h;
+  c.querySelectorAll('.daily-row').forEach(el=>{
+    el.addEventListener('click', async()=>{
+      await toggleDailyItem(el.dataset.k);
+    });
+  });
+}
 
 // ── Auto Session Restore ──
 async function tryRestoreSession(){

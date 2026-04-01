@@ -547,8 +547,9 @@ function subscribeAlerts(){
 
 async function sendAlert(title, body, targetDept, type='task'){
   const id='alert_'+Date.now();
-  // Store permanently in Firebase (no auto-delete)
   await setDoc(doc(db,'alerts',id),{title,body,targetDept,type,by:currentUser.name,time:nowTime(),ts:Date.now()});
+  // Also add to admin's own notif bell as confirmation
+  addNotif(title+(body?' — '+body:''), 'admin', targetDept, type==='note'?'📝':'✅');
 }
 
 // ── Admin Whitelist System ──
@@ -757,7 +758,7 @@ function renderSection(c,sid){
           <span class="task-label">${item}</span>
           <div style="display:flex;align-items:center;gap:6px">
             ${isDone?`<span class="task-who">${s.who} ${s.time||''}</span>`:''}
-            ${isAdmin()?`<button class="note-btn" data-nk="${noteKey}" data-label="${item.replace(/"/g,'')}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${note?'var(--amber)':'var(--text3)'}" title="${note?'Notu düzenle':'Not ekle'}">${note?'💬':'＋'}</button>`:''}
+            ${isAdmin()?`<button class="note-btn" data-nk="${noteKey}" data-sid="${sid}" data-dept="${dept.d}" data-label="${item.replace(/"/g,'')}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${note?'var(--amber)':'var(--text3)'}" title="${note?'Notu düzenle':'Not ekle'}">${note?'💬':'＋'}</button>`:''}
           </div>
         </div>
         ${note?`<div style="padding:4px 16px 8px 46px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.05);border-top:1px dashed rgba(251,191,36,.2)">📝 ${note}</div>`:''}
@@ -768,22 +769,37 @@ function renderSection(c,sid){
   c.innerHTML = h + `</div>`;
   c.querySelectorAll('.dept-header').forEach(el=>el.addEventListener('click',()=>{ const dk=el.dataset.dk; const body=document.getElementById('db-'+dk); const open=body.style.display!=='none'; body.style.display=open?'none':'block'; deptOpen[dk]=!open; }));
   c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click', async(e)=>{ if(e.target.closest('.note-btn')) return; const k=el.dataset.k; const sid=el.dataset.sid; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
-  c.querySelectorAll('.note-btn').forEach(el=>el.addEventListener('click', e=>{ e.stopPropagation(); const nk=el.dataset.nk; const label=el.dataset.label; const cur=state[nk]?.text||'';
-    showSub(`<h3>Görev Notu</h3><p style="font-size:12px;color:var(--text2);margin-bottom:12px">${label}</p>
+  c.querySelectorAll('.note-btn').forEach(el=>el.addEventListener('click', e=>{
+    e.stopPropagation();
+    const nk=el.dataset.nk;
+    const label=el.dataset.label;
+    const deptName=el.dataset.dept||'';
+    const secId=el.dataset.sid||'';
+    const sec2=SECTIONS.find(s=>s.id===secId);
+    const cur=state[nk]?.text||'';
+    showSub(`<h3>Görev Notu</h3>
+    <p style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📌 ${deptName}</p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">${label}</p>
     <div class="field"><label>NOT</label><textarea id="f-note" rows="4" placeholder="Bu görev için not ekleyin...">${cur}</textarea></div>
     <div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button>${cur?'<button class="btn-sm sub-del" style="color:#f87171;border-color:#f87171">Notu Sil</button>':''}<button class="btn-sm green sub-save">Kaydet →</button></div>`,
-    async()=>{ const val=document.getElementById('f-note').value.trim();
+    async()=>{
+      const val=document.getElementById('f-note').value.trim();
       if(val){
         await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()});
-        // nk format: note__sid__dept__i
-        const parts=nk.split('__');
-        const secId=parts[1]||'';
-        const deptName=parts[2]||'';
-        const sec2=SECTIONS.find(s=>s.id===secId);
-        await sendAlert((sec2?.title||secId)+' — Yeni Not Eklendi', '"'+val+'"', deptName, 'note');
-      } else { try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} }
-      closeSub(); renderContent(); toast('Not kaydedildi ✓','success');
-    }, async()=>{ try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} closeSub(); renderContent(); toast('Not silindi','info'); });
+        const alertTitle=(sec2?.title||secId)+' / '+deptName+' — Not Eklendi';
+        const alertBody=label+': "'+val+'"';
+        await sendAlert(alertTitle, alertBody, deptName, 'note');
+        toast('Not kaydedildi ✓','success');
+      } else {
+        try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){}
+        toast('Not silindi','info');
+      }
+      closeSub(); renderContent();
+    },
+    async()=>{
+      try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){}
+      closeSub(); renderContent(); toast('Not silindi','info');
+    });
   }));
   if(isAdmin()) c.querySelectorAll('.admin-edit-btn').forEach(el=>el.addEventListener('click',()=>{ openAdmin(); }));
 }

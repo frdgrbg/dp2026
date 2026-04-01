@@ -211,6 +211,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+<!-- Big Alert Notification -->
+<div id="big-notif" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:24px">
+  <div style="background:#1e221e;border:2px solid #fbbf24;border-radius:20px;padding:32px;max-width:440px;width:100%;text-align:center;animation:fadeUp .4s ease">
+    <div id="big-notif-icon" style="font-size:48px;margin-bottom:16px">📢</div>
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px" id="big-notif-dept"></div>
+    <div style="font-size:18px;font-weight:600;color:#e8ebe6;margin-bottom:8px" id="big-notif-title"></div>
+    <div style="font-size:14px;color:#8a9088;margin-bottom:24px" id="big-notif-body"></div>
+    <div style="font-size:11px;color:#5a5e58;margin-bottom:20px" id="big-notif-time"></div>
+    <button id="big-notif-close" style="background:#4ade80;color:#052e16;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;width:100%">Tamam, Anladım</button>
+  </div>
+</div>
+
 <!-- Sub Modal -->
 <div class="modal-overlay" id="sub-modal">
   <div class="modal" id="sub-modal-body"></div>
@@ -339,8 +351,14 @@ const toast = (msg, type='info') => {
 // ── Firebase ──
 const fbSetTask = (k,data) => setDoc(doc(db,'tasks',fbKey(k)),{key:k,...data});
 const fbDelTask = k => deleteDoc(doc(db,'tasks',fbKey(k)));
-const fbSetUser = u => setDoc(doc(db,'users',u.name.replace(/\s/g,'_')),{...u,ts:Date.now()});
-const fbDelUser = name => deleteDoc(doc(db,'users',name.replace(/\s/g,'_')));
+const fbSetUser = u => setDoc(doc(db,'users',u.name.replace(/\s/g,'_')),{...u,ts:Date.now(),online:true});
+const fbDelUser = name => setDoc(doc(db,'users',name.replace(/\s/g,'_')),{online:false,ts:Date.now()},{merge:true});
+let heartbeatInterval = null;
+function startHeartbeat(){
+  if(heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(()=>{ if(currentUser) fbSetUser(currentUser); }, 30000);
+}
+function stopHeartbeat(){ if(heartbeatInterval){ clearInterval(heartbeatInterval); heartbeatInterval=null; } }
 const fbSaveSec = sec => setDoc(doc(db,'sections',sec.id),{...sec,tasks:JSON.stringify(sec.tasks)});
 const fbDelSec = async id => {
   await deleteDoc(doc(db,'sections',id));
@@ -420,6 +438,54 @@ function renderNotifPanel(){
       <div style="font-size:13px;color:var(--text)">${n.msg}</div>
       <div style="font-size:11px;color:var(--text3);margin-top:3px">${n.date} ${n.time}</div>
     </div>`).join('');
+}
+
+// ── Big Alert Notification ──
+let bigNotifQueue = [];
+let bigNotifShowing = false;
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('big-notif-close').addEventListener('click', ()=>{
+    document.getElementById('big-notif').style.display='none';
+    bigNotifShowing=false;
+    if(bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
+  });
+});
+
+function showBigNotif(data){
+  if(bigNotifShowing){ bigNotifQueue.push(data); return; }
+  bigNotifShowing=true;
+  document.getElementById('big-notif-icon').textContent = data.type==='note'?'📝':'✅';
+  document.getElementById('big-notif-dept').textContent = data.dept ? '📌 '+data.dept+' Departmanı' : '📢 Genel Duyuru';
+  document.getElementById('big-notif-title').textContent = data.title;
+  document.getElementById('big-notif-body').textContent = data.body||'';
+  document.getElementById('big-notif-time').textContent = 'Admin tarafından eklendi · '+data.time;
+  document.getElementById('big-notif').style.display='flex';
+}
+
+let lastNotifTs = Date.now();
+
+function subscribeAlerts(){
+  onSnapshot(collection(db,'alerts'), snap=>{
+    snap.docChanges().forEach(change=>{
+      if(change.type==='added'){
+        const data=change.doc.data();
+        if(data.ts && data.ts > lastNotifTs && data.by !== currentUser?.name){
+          // Show only if dept matches or alert is for all
+          if(!data.targetDept || data.targetDept===currentUser?.dept || currentUser?.dept==='Admin'){
+            showBigNotif(data);
+            addNotif(data.title+(data.body?' — '+data.body:''), 'admin');
+          }
+        }
+      }
+    });
+  });
+}
+
+async function sendAlert(title, body, targetDept, type='task'){
+  const id='alert_'+Date.now();
+  await setDoc(doc(db,'alerts',id),{title,body,targetDept,type,by:currentUser.name,time:nowTime(),ts:Date.now()});
+  setTimeout(()=>deleteDoc(doc(db,'alerts',id)),86400000); // 24h
 }
 
 // ── Admin Whitelist System ──
@@ -516,17 +582,21 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     av.textContent = currentUser.initials; av.style.background = currentUser.color; av.style.color = '#fff';
     if(isAdmin()) document.getElementById('admin-btn').style.display = 'inline-flex';
     toast('Bağlandı ✓','success');
+    lastNotifTs = Date.now();
+    startHeartbeat();
     subscribeNotifs();
+    subscribeAlerts();
     await loadApprovedAdmins();
     subscribeApprovals();
     if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
-    window.addEventListener('beforeunload', () => fbDelUser(currentUser.name));
+    window.addEventListener('beforeunload', () => { stopHeartbeat(); fbDelUser(currentUser.name); });
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } else { if(currentUser){ fbSetUser(currentUser); startHeartbeat(); } } });
   }catch(e){ toast('Bağlantı hatası: '+e.message,'error'); btn.textContent='Giriş Yap →'; btn.disabled=false; }
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await fbDelUser(currentUser.name);
-  if(unsubTasks) unsubTasks(); if(unsubUsers) unsubUsers(); if(unsubSections) unsubSections(); if(unsubApprovals) unsubApprovals(); if(unsubNotifs) unsubNotifs();
+  stopHeartbeat(); if(unsubTasks) unsubTasks(); if(unsubUsers) unsubUsers(); if(unsubSections) unsubSections(); if(unsubApprovals) unsubApprovals(); if(unsubNotifs) unsubNotifs();
   currentUser=null; state={}; onlineUsers={};
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app-screen').style.display='none';
@@ -541,7 +611,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 // ── Online bar ──
 function renderOnlineBar(){
   const bar = document.getElementById('online-bar');
-  const users = Object.values(onlineUsers);
+  const now = Date.now();
+  const users = Object.values(onlineUsers).filter(u=>u.online && u.ts && (now-u.ts)<120000);
   bar.innerHTML = `<div class="online-dot"></div><span style="margin-right:6px;white-space:nowrap;flex-shrink:0">${users.length} çevrimiçi</span>`;
   users.forEach(u=>{ const c=document.createElement('div'); c.className='online-chip'; c.innerHTML=`<div class="av" style="background:${u.color||'#4ade80'};color:#fff">${u.initials}</div>${u.name.split(' ')[0]}`; bar.appendChild(c); });
 }
@@ -636,8 +707,12 @@ function renderSection(c,sid){
     <div class="field"><label>NOT</label><textarea id="f-note" rows="4" placeholder="Bu görev için not ekleyin...">${cur}</textarea></div>
     <div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button>${cur?'<button class="btn-sm sub-del" style="color:#f87171;border-color:#f87171">Notu Sil</button>':''}<button class="btn-sm green sub-save">Kaydet →</button></div>`,
     async()=>{ const val=document.getElementById('f-note').value.trim();
-      if(val){ await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()}); }
-      else { try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} }
+      if(val){
+        await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()});
+        const secId=nk.split('__')[0]; const sec2=SECTIONS.find(s=>s.id===secId);
+        const deptName=sec2?.tasks?.find(d=>d.items?.some((_,i)=>nk.includes(d.d)))?.d||'';
+        await sendAlert(sec2?.title+' — Yeni Not', val, deptName, 'note');
+      } else { try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} }
       closeSub(); renderContent(); toast('Not kaydedildi ✓','success');
     }, async()=>{ try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} closeSub(); renderContent(); toast('Not silindi','info'); });
   }));
@@ -728,7 +803,9 @@ function renderAdminPanel(){
     const items=document.getElementById('f-tasks').value.split('\n').map(t=>t.trim()).filter(Boolean);
     if(!title||!dept){toast('Alan adı ve departman zorunlu.','error');return;}
     const sec={id:slugify(title),ico,title,order:SECTIONS.length,tasks:[{d:dept,items:items.length?items:['Görev 1']}]};
-    SECTIONS.push(sec); await fbSaveSec(sec); await sendNotif('Admin: "'+title+'" alanı eklendi'); closeSub(); renderAdminPanel(); renderSidebar(); toast(title+' eklendi ✓','success');
+    SECTIONS.push(sec); await fbSaveSec(sec);
+    await sendAlert('Yeni Alan Eklendi: '+title, dept+' — '+items.join(', '), '', 'task');
+    closeSub(); renderAdminPanel(); renderSidebar(); toast(title+' eklendi ✓','success');
   }));
 
   c.querySelectorAll('.del-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
@@ -757,7 +834,9 @@ function renderAdminPanel(){
     <div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>`,
     async()=>{ const items=document.getElementById('f-tasks').value.split('\n').map(t=>t.trim()).filter(Boolean);
       if(!items.length){toast('En az bir görev girin.','error');return;}
-      sec.tasks[di].items.push(...items); await fbSaveSec(sec); await sendNotif('Admin: '+sec.title+' alanına '+items.length+' yeni görev eklendi'); closeSub(); renderAdminPanel(); renderSidebar(); toast(items.length+' görev eklendi ✓','success'); });
+      sec.tasks[di].items.push(...items); await fbSaveSec(sec);
+      await sendAlert(sec.title+' — Yeni Görev Eklendi', items.join(', '), sec.tasks[di].d, 'task');
+      closeSub(); renderAdminPanel(); renderSidebar(); toast(items.length+' görev eklendi ✓','success'); });
   }));
 
   c.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',()=>{

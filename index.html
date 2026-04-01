@@ -293,9 +293,10 @@ if('serviceWorker' in navigator){
   <div class="modal" id="sub-modal-body"></div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-firestore.js"></script>
+<script>
+// Firebase v8 SDK
 
 const firebaseConfig = {
   apiKey: "AIzaSyAkXjxnSnbW1M6nJwXn7QeiM151zJ9PqaE",
@@ -313,8 +314,8 @@ let approvedAdmins = []; // Firebase'den gelecek
 const isApprovedAdmin = name => approvedAdmins.includes(name) || name === SUPER_ADMIN;
 const isSuperAdmin = name => name === SUPER_ADMIN;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 const DEFAULT_SECTIONS = [
   {id:"turnuva",ico:"🏢",title:"Turnuva Ofisleri",order:0,tasks:[
@@ -544,7 +545,7 @@ let unsubPriorities = null;
 
 function subscribePriorities(){
   if(unsubPriorities) unsubPriorities();
-  unsubPriorities = onSnapshot(collection(db,'priorities'), snap=>{
+  unsubPriorities = db.collection('priorities').onSnapshot(snap=>{
     taskPriorities={};
     snap.forEach(d=>{ taskPriorities[d.id]=d.data().priority; });
     renderContent();
@@ -552,8 +553,8 @@ function subscribePriorities(){
 }
 async function setPriority(k, p){
   const id = k.replace(/[|]/g,'__');
-  if(p) await setDoc(doc(db,'priorities',id),{priority:p,key:k});
-  else await deleteDoc(doc(db,'priorities',id));
+  if(p) await db.collection('priorities').doc(id).set({priority:p,key:k});
+  else await db.collection('priorities').doc(id).delete();
 }
 let currentUser = null, currentSection = 'overview', state = {}, onlineUsers = {}, deptOpen = {};
 let unsubTasks = null, unsubUsers = null, unsubSections = null;
@@ -573,38 +574,38 @@ const toast = (msg, type='info') => {
 };
 
 // ── Firebase ──
-const fbSetTask = (k,data) => setDoc(doc(db,'tasks',fbKey(k)),{key:k,...data});
-const fbDelTask = k => deleteDoc(doc(db,'tasks',fbKey(k)));
-const fbSetUser = u => setDoc(doc(db,'users',u.name.replace(/\s/g,'_')),{...u,ts:Date.now(),online:true});
-const fbDelUser = name => setDoc(doc(db,'users',name.replace(/\s/g,'_')),{online:false,ts:Date.now()},{merge:true});
+const fbSetTask = (k,data) => db.collection('tasks').doc(fbKey(k)).set({key:k,...data});
+const fbDelTask = k => db.collection('tasks').doc(fbKey(k)).delete();
+const fbSetUser = u => db.collection('users').doc(u.name.replace(/\s/g,'_')).set({...u,ts:Date.now(),online:true});
+const fbDelUser = name => db.collection('users').doc(name.replace(/\s/g,'_')).set({online:false,ts:Date.now()},{merge:true}).catch(()=>{});
 let heartbeatInterval = null;
 function startHeartbeat(){
   if(heartbeatInterval) clearInterval(heartbeatInterval);
   heartbeatInterval = setInterval(()=>{ if(currentUser) fbSetUser(currentUser); }, 30000);
 }
 function stopHeartbeat(){ if(heartbeatInterval){ clearInterval(heartbeatInterval); heartbeatInterval=null; } }
-const fbSaveSec = sec => setDoc(doc(db,'sections',sec.id),{...sec,tasks:JSON.stringify(sec.tasks)});
+const fbSaveSec = sec => db.collection('sections').doc(sec.id).set({...sec,tasks:JSON.stringify(sec.tasks)});
 const fbDelSec = async id => {
-  await deleteDoc(doc(db,'sections',id));
-  const snap = await getDocs(collection(db,'tasks'));
-  await Promise.all(snap.docs.filter(d=>d.data().key?.startsWith(id+'|')).map(d=>deleteDoc(d.ref)));
+  await db.collection('sections').doc(id).delete();
+  const snap = await db.collection('tasks').get();
+  await Promise.all(snap.docs.filter(d=>d.data().key?.startsWith(id+'|')).map(d=>d.ref.delete()));
 };
 
 function subscribeAll(){
-  unsubSections = onSnapshot(collection(db,'sections'), snap => {
+  unsubSections = db.collection('sections').onSnapshot(snap => {
     if(!snap.empty){
       const arr = [];
       snap.forEach(d => { try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} });
       if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); }
     }
   });
-  unsubTasks = onSnapshot(collection(db,'tasks'), snap => {
+  unsubTasks = db.collection('tasks').onSnapshot(snap => {
     state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent(); updateDailyBadge();
     // Refresh daily modal if open
     if(!document.getElementById('daily-modal').classList.contains('open')) return;
     renderDailyModal();
   });
-  unsubUsers = onSnapshot(collection(db,'users'), snap => {
+  unsubUsers = db.collection('users').onSnapshot(snap => {
     onlineUsers={}; snap.forEach(d=>{ const x=d.data(); onlineUsers[x.name]=x; }); renderOnlineBar();
   });
 }
@@ -651,7 +652,7 @@ function showInAppNotif(msg, type='info', dept='', icon='🔔'){
 }
 
 function subscribeNotifs(){
-  unsubNotifs = onSnapshot(collection(db,'notifications'), snap => {
+  unsubNotifs = db.collection('notifications').onSnapshot(snap => {
     snap.docChanges().forEach(change => {
       if(change.type === 'added'){
         const data = change.doc.data();
@@ -666,8 +667,8 @@ function subscribeNotifs(){
 async function sendNotif(msg, type='admin'){
   try{
     const id = 'notif_' + Date.now();
-    await setDoc(doc(db,'notifications',id), {msg, type, by: currentUser.name, ts: Date.now()});
-    setTimeout(()=>deleteDoc(doc(db,'notifications',id)), 30000);
+    await db.collection('notifications').doc(id).set({msg, type, by: currentUser.name, ts: Date.now()});
+    setTimeout(()=>db.collection('notifications').doc(id).delete(), 30000);
   }catch(e){}
 }
 
@@ -761,7 +762,7 @@ function processAlert(id, data){
 
 async function checkPendingAlerts(){
   try{
-    const snap = await getDocs(collection(db,'alerts'));
+    const snap = await db.collection('alerts').get();
     const pending = [];
     snap.forEach(d => {
       const data = d.data();
@@ -790,7 +791,7 @@ async function checkPendingAlerts(){
 function subscribeAlerts(){
   // Only catches NEW alerts added AFTER login
   let initialized = false;
-  onSnapshot(collection(db,'alerts'), snap => {
+  db.collection('alerts').onSnapshot(snap => {
     if(!initialized){ 
       initialized = true; 
       return; // skip initial load — handled by checkPendingAlerts
@@ -805,7 +806,7 @@ function subscribeAlerts(){
 
 async function sendAlert(title, body, targetDept, type='task'){
   const id='alert_'+Date.now();
-  await setDoc(doc(db,'alerts',id),{title,body,targetDept:targetDept||'',type,by:currentUser.name,time:nowTime(),ts:Date.now()});
+  await db.collection('alerts').doc(id).set({title,body,targetDept:targetDept||'',type,by:currentUser.name,time:nowTime(),ts:Date.now()});
   // Admin's own notification - mark seen immediately (no need for admin to acknowledge)
   addNotif(title+(body?' — '+body:''), 'admin', targetDept||'', type==='note'?'📝':'✅', id);
   markAlertSeen(id); // admin already knows what they sent
@@ -816,19 +817,19 @@ let unsubApprovals = null;
 
 async function loadApprovedAdmins(){
   try{
-    const snap = await getDocs(collection(db,'admin_whitelist'));
+    const snap = await db.collection('admin_whitelist').get();
     approvedAdmins = snap.docs.map(d=>d.data().name);
   }catch(e){}
 }
 
 function subscribeApprovals(){
-  unsubApprovals = onSnapshot(collection(db,'admin_whitelist'), snap => {
+  unsubApprovals = db.collection('admin_whitelist').onSnapshot(snap => {
     approvedAdmins = snap.docs.map(d=>d.data().name);
   });
 }
 
 async function renderApprovalList(){
-  const snap = await getDocs(collection(db,'admin_whitelist'));
+  const snap = await db.collection('admin_whitelist').get();
   const list = document.getElementById('approval-list');
   const admins = snap.docs.map(d=>({id:d.id,...d.data()}));
   list.innerHTML = `
@@ -854,12 +855,12 @@ async function renderApprovalList(){
     if(!name){ toast('Ad girin','error'); return; }
     if(approvedAdmins.includes(name)){ toast('Bu kişi zaten listede','error'); return; }
     const id = name.replace(/\s/g,'_')+'_admin';
-    await setDoc(doc(db,'admin_whitelist',id),{name,addedBy:currentUser.name,time:nowTime()});
+    await db.collection('admin_whitelist').doc(id).set({name,addedBy:currentUser.name,time:nowTime()});
     toast(name+' admin listesine eklendi ✓','success');
     renderApprovalList();
   });
   list.querySelectorAll('.remove-admin-btn').forEach(btn=>btn.addEventListener('click', async()=>{
-    await deleteDoc(doc(db,'admin_whitelist',btn.dataset.id));
+    await db.collection('admin_whitelist').doc(btn.dataset.id).delete();
     toast(btn.dataset.name+' listeden kaldırıldı','info');
     renderApprovalList();
   }));
@@ -1123,7 +1124,7 @@ function renderSection(c,sid){
     async()=>{
       const val=document.getElementById('f-note').value.trim();
       if(val){
-        await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()});
+        await db.collection('tasks').doc(nk).set({key:nk,text:val,by:currentUser.name,time:nowTime()});
         // Not girilince görevi yapılmamış yap (task key = nk olmadan 'note__' prefix)
         const taskK = nk.replace(/^note__/,'').replace(/__/g,'|');
         if(state[taskK]?.done){
@@ -1136,13 +1137,13 @@ function renderSection(c,sid){
         const alertBody=label+': "'+val+'"';
         await sendAlert(alertTitle, alertBody, deptName, 'note');
       } else {
-        try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){}
+        try{ await db.collection('tasks').doc(nk).delete(); }catch(e){}
         toast('Not silindi','info');
       }
       closeSub(); renderContent();
     },
     async()=>{
-      try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){}
+      try{ await db.collection('tasks').doc(nk).delete(); }catch(e){}
       closeSub(); renderContent(); toast('Not silindi','info');
     });
   }));
@@ -1271,7 +1272,7 @@ document.getElementById('notif-clear').addEventListener('click', ()=>{
   // Clear own notifications and mark all alerts as seen
   notifications=[]; saveNotifs(); updateNotifBadge();
   // Mark all Firebase alerts as seen for this user
-  getDocs(collection(db,'alerts')).then(snap=>{
+  db.collection('alerts').get().then(snap=>{
     snap.forEach(d=>markAlertSeen(d.id));
   });
   renderNotifPanel();
@@ -1281,8 +1282,8 @@ document.getElementById('notif-reset-all').addEventListener('click', async()=>{
   if(!confirm('Tüm kullanıcıların bildirimleri sıfırlanacak. Emin misiniz?')) return;
   try{
     // Delete all alerts from Firebase
-    const snap = await getDocs(collection(db,'alerts'));
-    const dels = snap.docs.map(d=>deleteDoc(doc(db,'alerts',d.id)));
+    const snap = await db.collection('alerts').get();
+    const dels = snap.docs.map(d=>db.collection('alerts').doc(d.id).delete());
     await Promise.all(dels);
     // Clear own local notifications
     notifications=[]; saveNotifs(); updateNotifBadge();
@@ -1432,7 +1433,7 @@ function renderTopDay(){
 
 async function loadTournDays(){
   try{
-    const snap = await getDocs(collection(db,'tourn_days'));
+    const snap = await db.collection('tourn_days').get();
     if(!snap.empty){
       tournDays = snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date));
     }
@@ -1440,7 +1441,7 @@ async function loadTournDays(){
 }
 
 async function saveTournDay(day){
-  await setDoc(doc(db,'tourn_days',day.id), day);
+  await db.collection('tourn_days').doc(day.id).set(day);
 }
 
 function renderDaySettings(){
@@ -1502,7 +1503,7 @@ function priorityBadge(p){
 // ── Users List (Admin only) ──
 async function renderUsersList(){
   try{
-    const snap = await getDocs(collection(db,'users'));
+    const snap = await db.collection('users').get();
     const list = document.getElementById('users-list');
     const users = [];
     snap.forEach(d => {
@@ -1536,7 +1537,7 @@ async function renderUsersList(){
         const name = btn.dataset.name;
         if(!confirm(name + ' kullanıcısını listeden silmek istiyor musunuz?')) return;
         try{
-          await deleteDoc(doc(db,'users', btn.dataset.key));
+          await db.collection('users').doc(btn.dataset.key).delete();
           toast(name + ' silindi','info');
           renderUsersList();
         }catch(e){ toast('Silinemedi: '+e.message,'error'); }
@@ -1579,9 +1580,9 @@ function updateDailyBadge(){
 async function toggleDailyItem(k){
   try{
     if(state[k]?.done){
-      await deleteDoc(doc(db,'tasks',fbDailyKey(k)));
+      await db.collection('tasks').doc(fbDailyKey(k)).delete();
     } else {
-      await setDoc(doc(db,'tasks',fbDailyKey(k)),{key:k,done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()});
+      await db.collection('tasks').doc(fbDailyKey(k)).set({key:k,done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()});
     }
   }catch(e){ toast('Hata: '+e.message,'error'); }
 }

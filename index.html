@@ -344,6 +344,29 @@ const DEFAULT_SECTIONS = [
 ];
 
 let SECTIONS = JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
+
+// Departman renk paleti
+const DEPT_COLORS = {
+  'Teknik':        {bg:'rgba(56,139,251,.1)',  border:'rgba(56,139,251,.3)',  text:'#60a5fa', header:'rgba(56,139,251,.2)'},
+  'HK':            {bg:'rgba(74,222,128,.08)', border:'rgba(74,222,128,.25)', text:'#4ade80', header:'rgba(74,222,128,.18)'},
+  'F&B':           {bg:'rgba(251,191,36,.08)', border:'rgba(251,191,36,.25)', text:'#fbbf24', header:'rgba(251,191,36,.18)'},
+  'Bilgi İşlem':   {bg:'rgba(167,139,250,.1)', border:'rgba(167,139,250,.3)', text:'#a78bfa', header:'rgba(167,139,250,.2)'},
+  'Bilgi İşlem / Promoter': {bg:'rgba(167,139,250,.1)', border:'rgba(167,139,250,.3)', text:'#a78bfa', header:'rgba(167,139,250,.2)'},
+  'Promoter':      {bg:'rgba(232,121,249,.08)',border:'rgba(232,121,249,.25)',text:'#e879f9', header:'rgba(232,121,249,.18)'},
+  'Resepsiyon':    {bg:'rgba(52,211,153,.08)', border:'rgba(52,211,153,.25)', text:'#34d399', header:'rgba(52,211,153,.18)'},
+  'Mutfak':        {bg:'rgba(251,146,60,.08)', border:'rgba(251,146,60,.25)', text:'#fb923c', header:'rgba(251,146,60,.18)'},
+  'Kalite Kontrol':{bg:'rgba(248,113,113,.08)',border:'rgba(248,113,113,.25)',text:'#f87171', header:'rgba(248,113,113,.18)'},
+  'Ambulans':      {bg:'rgba(248,113,113,.12)',border:'rgba(248,113,113,.4)', text:'#f87171', header:'rgba(248,113,113,.25)'},
+  'Range Operasyon':{bg:'rgba(16,185,129,.08)',border:'rgba(16,185,129,.25)', text:'#10b981', header:'rgba(16,185,129,.18)'},
+  'Kulüp':         {bg:'rgba(99,153,34,.08)',  border:'rgba(99,153,34,.25)',  text:'#4ade80', header:'rgba(99,153,34,.18)'},
+  'Marketing':     {bg:'rgba(217,70,239,.08)', border:'rgba(217,70,239,.25)', text:'#d946ef', header:'rgba(217,70,239,.18)'},
+  'Peyzaj':        {bg:'rgba(52,211,153,.08)', border:'rgba(52,211,153,.25)', text:'#34d399', header:'rgba(52,211,153,.18)'},
+  'Muhasebe & Cost':{bg:'rgba(251,191,36,.08)',border:'rgba(251,191,36,.25)', text:'#fbbf24', header:'rgba(251,191,36,.18)'},
+  'Proshop Mağaza':{bg:'rgba(232,121,249,.08)',border:'rgba(232,121,249,.25)',text:'#e879f9', header:'rgba(232,121,249,.18)'},
+};
+function getDeptColor(d){ return DEPT_COLORS[d] || {bg:'rgba(255,255,255,.03)',border:'rgba(255,255,255,.08)',text:'var(--text2)',header:'rgba(255,255,255,.06)'}; }
+
+let activeDeptFilter = ''; // '' = tümü
 let currentUser = null, currentSection = 'overview', state = {}, onlineUsers = {}, deptOpen = {};
 let unsubTasks = null, unsubUsers = null, unsubSections = null;
 
@@ -700,6 +723,9 @@ document.getElementById('login-btn').addEventListener('click', async () => {
       document.getElementById('users-btn').style.display = 'inline-flex';
     }
     toast('Bağlandı ✓','success');
+    // Auto-filter to own dept for non-admin users
+    if(currentUser.dept !== 'Admin') activeDeptFilter = currentUser.dept;
+    if(currentUser.dept !== 'Admin') activeDeptFilter = currentUser.dept;
     notifications = [];
     startHeartbeat();
     subscribeNotifs();
@@ -747,7 +773,7 @@ function renderSidebar(){
       <span class="ico">${s.ico}</span><span>${s.title}</span><span class="sidebar-badge">${done}/${total}</span></button>`;
   });
   sb.innerHTML = h + `</div>`;
-  sb.querySelectorAll('.sidebar-item').forEach(btn => btn.addEventListener('click', ()=>{ currentSection=btn.dataset.sec; renderSidebar(); renderContent(); }));
+  sb.querySelectorAll('.sidebar-item').forEach(btn => btn.addEventListener('click', ()=>{ if(btn.dataset.sec !== currentSection){ activeDeptFilter = currentUser?.dept !== 'Admin' ? currentUser?.dept||'' : ''; } currentSection=btn.dataset.sec; renderSidebar(); renderContent(); }));
 }
 
 // ── Stats ──
@@ -788,6 +814,19 @@ function renderOverview(c){
 function renderSection(c,sid){
   const sec=SECTIONS.find(s=>s.id===sid); if(!sec){ currentSection='overview'; renderContent(); return; }
   const{done,total}=secStats(sid); const pct=total?Math.round(done/total*100):0;
+
+  // Build dept filter pills
+  const allDepts = sec.tasks.map(d=>d.d);
+  let filterHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Filtrele:</span>
+    <button class="dept-filter-btn ${!activeDeptFilter?'active-filter':''}" data-dept="" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:${!activeDeptFilter?'var(--green3)':'var(--bg3)'};color:${!activeDeptFilter?'var(--green)':'var(--text2)'};cursor:pointer">Tümü</button>`;
+  allDepts.forEach(d=>{
+    const col=getDeptColor(d);
+    const isActive=activeDeptFilter===d;
+    filterHtml+=`<button class="dept-filter-btn ${isActive?'active-filter':''}" data-dept="${d}" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid ${isActive?col.text:col.border};background:${isActive?col.header:col.bg};color:${col.text};cursor:pointer">${d}</button>`;
+  });
+  filterHtml += `</div>`;
+
   let h=`<div class="fade-up"><div class="sec-heading">
     <h2><span class="sec-ico">${sec.ico}</span>${sec.title}</h2>
     <div style="display:flex;align-items:center;gap:8px">
@@ -795,18 +834,28 @@ function renderSection(c,sid){
       ${isAdmin()?`<button class="btn-sm admin-edit-btn" data-sid="${sid}" style="font-size:11px;padding:4px 10px">✏️ Düzenle</button>`:''}
     </div>
   </div>
-  <div class="glob-prog" style="margin-bottom:20px"><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div></div>`;
+  <div class="glob-prog" style="margin-bottom:16px"><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div></div>
+  ${filterHtml}`;
+
   sec.tasks.forEach(dept=>{
+    // Hide if filtered out
+    const isFiltered = activeDeptFilter && activeDeptFilter !== dept.d;
+    if(isFiltered) return;
+    const col = getDeptColor(dept.d);
     const dc=dept.items.filter((_,i)=>state[taskKey(sid,dept.d,i)]?.done).length;
     const dk=(sid+'_'+dept.d).replace(/[^a-zA-Z0-9]/g,'_');
     const open=deptOpen[dk]!==false;
-    h+=`<div class="task-card"><div class="dept-header" data-dk="${dk}"><span class="dept-name">${dept.d}</span><span class="dept-prog">${dc}/${dept.items.length}</span></div>
-    <div class="dept-body" id="db-${dk}" style="display:${open?'block':'none'}">`;
+    h+=`<div class="task-card" style="border-color:${col.border};background:${col.bg}">
+      <div class="dept-header" data-dk="${dk}" style="background:${col.header};border-color:${col.border}">
+        <span class="dept-name" style="color:${col.text}">${dept.d}</span>
+        <span class="dept-prog">${dc}/${dept.items.length}</span>
+      </div>
+      <div class="dept-body" id="db-${dk}" style="display:${open?'block':'none'}">`;
     dept.items.forEach((item,i)=>{ const k=taskKey(sid,dept.d,i); const s=state[k]; const isDone=s?.done;
       const noteKey='note__'+fbKey(k); const note=state[noteKey]?.text||'';
-      h+=`<div style="border-bottom:1px solid var(--border)">
+      h+=`<div style="border-bottom:1px solid ${col.border}">
         <div class="task-row ${isDone?'done':''}" data-k="${k}" data-sid="${sid}" style="border-bottom:none">
-          <div class="task-check"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#052e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="task-check" style="${isDone?'':'border-color:'+col.border}"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#052e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <span class="task-label">${item}</span>
           <div style="display:flex;align-items:center;gap:6px">
             ${isDone?`<span class="task-who">${s.who} ${s.time||''}</span>`:''}
@@ -819,6 +868,10 @@ function renderSection(c,sid){
     h+=`</div></div>`;
   });
   c.innerHTML = h + `</div>`;
+  c.querySelectorAll('.dept-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    activeDeptFilter = btn.dataset.dept;
+    renderContent();
+  }));
   c.querySelectorAll('.dept-header').forEach(el=>el.addEventListener('click',()=>{ const dk=el.dataset.dk; const body=document.getElementById('db-'+dk); const open=body.style.display!=='none'; body.style.display=open?'none':'block'; deptOpen[dk]=!open; }));
   c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click', async(e)=>{ if(e.target.closest('.note-btn')) return; const k=el.dataset.k; const sid=el.dataset.sid; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
   c.querySelectorAll('.note-btn').forEach(el=>el.addEventListener('click', e=>{

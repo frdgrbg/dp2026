@@ -389,8 +389,10 @@ let unsubNotifs = null;
 
 function saveNotifs(){ localStorage.setItem('dpwt_notifs', JSON.stringify(notifications.slice(0,50))); }
 
-function addNotif(msg, type='info', dept='', icon='🔔'){
-  notifications.unshift({msg, type, dept, icon, time: nowTime(), date: new Date().toLocaleDateString('tr-TR'), id: Date.now()});
+function addNotif(msg, type='info', dept='', icon='🔔', alertId=null){
+  // Don't add duplicate notifications
+  if(alertId && notifications.find(n=>n.alertId===alertId)) return;
+  notifications.unshift({msg, type, dept, icon, alertId, time: nowTime(), date: new Date().toLocaleDateString('tr-TR'), id: Date.now(), seen: false});
   saveNotifs(); updateNotifBadge(); showInAppNotif(msg, type, dept, icon);
 }
 
@@ -446,7 +448,12 @@ async function sendNotif(msg, type='admin'){
 function renderNotifPanel(){
   const list = document.getElementById('notif-list');
   if(!notifications.length){ list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div>'; return; }
-  notifications.forEach(n=>n.seen=true); saveNotifs(); updateNotifBadge();
+  // Mark all as seen when panel is opened
+  notifications.forEach(n=>{
+    n.seen=true;
+    if(n.alertId) markAlertSeen(n.alertId);
+  });
+  saveNotifs(); updateNotifBadge();
   list.innerHTML = notifications.map(n=>`
     <div style="padding:12px 0;border-bottom:1px solid var(--border)">
       ${n.dept?`<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px">📌 ${n.dept} Departmanı</div>`:''}
@@ -466,6 +473,9 @@ let bigNotifShowing = false;
 
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('big-notif-close').addEventListener('click', ()=>{
+    // Mark current alert as seen when user clicks OK
+    const currentAlertId = document.getElementById('big-notif').dataset.alertId;
+    if(currentAlertId) markAlertSeen(currentAlertId);
     document.getElementById('big-notif').style.display='none';
     bigNotifShowing=false;
     if(bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
@@ -475,12 +485,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
 function showBigNotif(data){
   if(bigNotifShowing){ bigNotifQueue.push(data); return; }
   bigNotifShowing=true;
+  const el = document.getElementById('big-notif');
+  el.dataset.alertId = data.id || '';
   document.getElementById('big-notif-icon').textContent = data.type==='note'?'📝':'✅';
-  document.getElementById('big-notif-dept').textContent = data.dept ? '📌 '+data.dept+' Departmanı' : '📢 Genel Duyuru';
+  document.getElementById('big-notif-dept').textContent = data.targetDept ? '📌 '+data.targetDept+' Departmanı' : '📢 Genel Duyuru';
   document.getElementById('big-notif-title').textContent = data.title;
   document.getElementById('big-notif-body').textContent = data.body||'';
   document.getElementById('big-notif-time').textContent = 'Admin tarafından eklendi · '+data.time;
-  document.getElementById('big-notif').style.display='flex';
+  el.style.display='flex';
 }
 
 let lastNotifTs = Date.now();
@@ -507,14 +519,15 @@ function matchesMyDept(targetDept){
 
 function processAlert(id, data){
   if(isAlertSeen(id)) return;
-  if(data.by === currentUser?.name) return; // don't show own alerts
+  if(data.by === currentUser?.name) return;
   if(!matchesMyDept(data.targetDept)) return;
-  markAlertSeen(id);
+  // Don't mark seen yet - only mark seen when user acknowledges
   addNotif(
     data.title + (data.body ? ' — ' + data.body : ''),
     'admin',
     data.targetDept || '',
-    data.type === 'note' ? '📝' : '✅'
+    data.type === 'note' ? '📝' : '✅',
+    id  // pass alert id so we can mark seen later
   );
   bigNotifQueue.push({id, ...data});
   if(!bigNotifShowing && bigNotifQueue.length > 0) showBigNotif(bigNotifQueue.shift());
@@ -534,12 +547,13 @@ async function checkPendingAlerts(){
     });
     pending.sort((a,b) => (a.ts||0) - (b.ts||0));
     pending.forEach(a => {
-      markAlertSeen(a.id);
+      // Don't mark seen yet - user must acknowledge
       addNotif(
         a.title + (a.body ? ' — ' + a.body : ''),
         'admin',
         a.targetDept || '',
-        a.type === 'note' ? '📝' : '✅'
+        a.type === 'note' ? '📝' : '✅',
+        a.id
       );
       bigNotifQueue.push(a);
     });
@@ -566,8 +580,9 @@ function subscribeAlerts(){
 async function sendAlert(title, body, targetDept, type='task'){
   const id='alert_'+Date.now();
   await setDoc(doc(db,'alerts',id),{title,body,targetDept:targetDept||'',type,by:currentUser.name,time:nowTime(),ts:Date.now()});
-  // Add to admin's own bell as confirmation
-  addNotif(title+(body?' — '+body:''), 'admin', targetDept||'', type==='note'?'📝':'✅');
+  // Admin's own notification - mark seen immediately (no need for admin to acknowledge)
+  addNotif(title+(body?' — '+body:''), 'admin', targetDept||'', type==='note'?'📝':'✅', id);
+  markAlertSeen(id); // admin already knows what they sent
 }
 
 // ── Admin Whitelist System ──

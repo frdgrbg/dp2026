@@ -838,10 +838,17 @@ function renderSection(c,sid){
       const val=document.getElementById('f-note').value.trim();
       if(val){
         await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()});
+        // Not girilince görevi yapılmamış yap (task key = nk olmadan 'note__' prefix)
+        const taskK = nk.replace(/^note__/,'').replace(/__/g,'|');
+        if(state[taskK]?.done){
+          await fbDelTask(taskK);
+          toast('Not eklendi — görev tekrar yapılmamış olarak işaretlendi ⚠️','info');
+        } else {
+          toast('Not kaydedildi ✓','success');
+        }
         const alertTitle=(sec2?.title||secId)+' / '+deptName+' — Not Eklendi';
         const alertBody=label+': "'+val+'"';
         await sendAlert(alertTitle, alertBody, deptName, 'note');
-        toast('Not kaydedildi ✓','success');
       } else {
         try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){}
         toast('Not silindi','info');

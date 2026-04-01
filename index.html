@@ -501,9 +501,8 @@ function markAlertSeen(id){
 function isAlertSeen(id){ return getSeenAlerts().has(id); }
 
 function matchesMyDept(targetDept){
-  if(!targetDept) return true; // broadcast to all
-  if(currentUser?.dept === 'Admin') return true;
-  return targetDept === currentUser?.dept;
+  // All alerts go to everyone - targetDept just indicates who it's most relevant for
+  return true;
 }
 
 function processAlert(id, data){
@@ -566,9 +565,9 @@ function subscribeAlerts(){
 
 async function sendAlert(title, body, targetDept, type='task'){
   const id='alert_'+Date.now();
-  await setDoc(doc(db,'alerts',id),{title,body,targetDept,type,by:currentUser.name,time:nowTime(),ts:Date.now()});
-  // Also add to admin's own notif bell as confirmation
-  addNotif(title+(body?' — '+body:''), 'admin', targetDept, type==='note'?'📝':'✅');
+  await setDoc(doc(db,'alerts',id),{title,body,targetDept:targetDept||'',type,by:currentUser.name,time:nowTime(),ts:Date.now()});
+  // Add to admin's own bell as confirmation
+  addNotif(title+(body?' — '+body:''), 'admin', targetDept||'', type==='note'?'📝':'✅');
 }
 
 // ── Admin Whitelist System ──
@@ -987,6 +986,8 @@ async function tryRestoreSession(){
     av.style.background = currentUser.color;
     av.style.color = '#fff';
     if(currentUser.dept==='Admin') document.getElementById('admin-btn').style.display='inline-flex';
+    notifications = [];
+    notifications = [];
     startHeartbeat();
     subscribeNotifs();
     subscribeAlerts();

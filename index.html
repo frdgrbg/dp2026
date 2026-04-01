@@ -28,7 +28,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .topbar-logo{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
 .topbar-sep{width:1px;height:16px;background:var(--border2)}
 .topbar-title{font-size:13px;color:var(--text2)}
-.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto;max-width:calc(100vw - 160px)}
 .user-chip{display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 6px;font-size:12px;color:var(--text2)}
 .user-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
 .btn-sm{padding:6px 12px;font-size:12px;font-weight:500;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s,color .15s;display:inline-flex;align-items:center;gap:4px}
@@ -141,9 +141,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <span class="topbar-title">National Golf Club</span>
     </div>
     <div class="topbar-right">
-      <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative">👥 Onaylar<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
-      <button id="notif-btn" class="btn-sm" style="position:relative">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
-      <button id="admin-btn" class="btn-sm amber" style="display:none">⚙️ Admin</button>
+      <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative;white-space:nowrap">👥<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="notif-btn" class="btn-sm" style="position:relative;white-space:nowrap">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="admin-btn" class="btn-sm amber" style="display:none;white-space:nowrap">⚙️</button>
       <button class="btn-sm green" id="pdf-btn">PDF Rapor</button>
       <div class="user-chip">
         <div class="user-avatar" id="top-avatar"></div>
@@ -465,17 +465,25 @@ function showBigNotif(data){
 
 let lastNotifTs = Date.now();
 
+const seenAlertIds = new Set();
+
 function subscribeAlerts(){
+  // Small delay to avoid showing stale alerts from before login
+  const loginTime = Date.now();
   onSnapshot(collection(db,'alerts'), snap=>{
     snap.docChanges().forEach(change=>{
       if(change.type==='added'){
         const data=change.doc.data();
-        if(data.ts && data.ts > lastNotifTs && data.by !== currentUser?.name){
-          // Show only if dept matches or alert is for all
-          if(!data.targetDept || data.targetDept===currentUser?.dept || currentUser?.dept==='Admin'){
-            showBigNotif(data);
-            addNotif(data.title+(data.body?' — '+data.body:''), 'admin');
-          }
+        const id=change.doc.id;
+        if(seenAlertIds.has(id)) return;
+        seenAlertIds.add(id);
+        // Only show alerts created after login (ts within last 24h and after loginTime-5s)
+        if(!data.ts) return;
+        if(data.ts < loginTime - 5000) return; // older than login time
+        if(data.by === currentUser?.name) return; // own alerts
+        if(!data.targetDept || data.targetDept===currentUser?.dept || currentUser?.dept==='Admin'){
+          showBigNotif(data);
+          addNotif(data.title+(data.body?' — '+data.body:''), 'admin');
         }
       }
     });
@@ -589,8 +597,11 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     await loadApprovedAdmins();
     subscribeApprovals();
     if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
-    window.addEventListener('beforeunload', () => { stopHeartbeat(); fbDelUser(currentUser.name); });
-    document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } else { if(currentUser){ fbSetUser(currentUser); startHeartbeat(); } } });
+    window.addEventListener('beforeunload', () => { stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden && currentUser){ fbSetUser(currentUser); startHeartbeat(); }
+    });
+    window.addEventListener('pagehide', ()=>{ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
   }catch(e){ toast('Bağlantı hatası: '+e.message,'error'); btn.textContent='Giriş Yap →'; btn.disabled=false; }
 });
 
@@ -863,6 +874,39 @@ function renderAdminPanel(){
     async()=>{ sec.tasks.splice(Number(di),1); await fbSaveSec(sec); closeSub(); renderAdminPanel(); if(currentSection===sid) renderContent(); toast('Departman silindi','info'); });
   }));
 }
+
+// ── Auto Session Restore ──
+async function tryRestoreSession(){
+  const saved = localStorage.getItem('dpwt_session');
+  if(!saved) return;
+  try{
+    const u = JSON.parse(saved);
+    if(!u.name || !u.dept) return;
+    currentUser = u;
+    await fbSetUser(currentUser);
+    await loadApprovedAdmins();
+    subscribeAll();
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app-screen').style.display='block';
+    document.getElementById('top-username').textContent = currentUser.name;
+    const av = document.getElementById('top-avatar');
+    av.textContent = currentUser.initials;
+    av.style.background = currentUser.color;
+    av.style.color = '#fff';
+    if(currentUser.dept==='Admin') document.getElementById('admin-btn').style.display='inline-flex';
+    startHeartbeat();
+    subscribeNotifs();
+    subscribeAlerts();
+    subscribeApprovals();
+    if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
+    window.addEventListener('beforeunload', ()=>{ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
+    window.addEventListener('pagehide', ()=>{ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); });
+  }catch(e){ localStorage.removeItem('dpwt_session'); }
+}
+
+// Run on page load
+tryRestoreSession();
 
 function showSub(html, onSave, onDel){
   const body=document.getElementById('sub-modal-body');

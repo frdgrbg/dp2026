@@ -194,7 +194,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <span style="font-size:14px;font-weight:600">🔔 Bildirimler</span>
       <div style="display:flex;gap:8px">
-        <button class="btn-sm" id="notif-clear" style="font-size:11px">Tümünü Sil</button>
+        <button class="btn-sm" id="notif-clear" style="font-size:11px">Bildirimleri Temizle</button>
+        <button class="btn-sm" id="notif-reset-all" style="display:none;font-size:11px;color:#f87171;border-color:#f87171">🗑️ Herkesi Sıfırla</button>
         <button class="btn-sm" id="notif-close">✕</button>
       </div>
     </div>
@@ -942,9 +943,37 @@ document.getElementById('pdf-download').addEventListener('click',()=>{
 document.getElementById('admin-btn').addEventListener('click', openAdmin);
 document.getElementById('admin-close').addEventListener('click', ()=>document.getElementById('admin-modal').classList.remove('open'));
 
-document.getElementById('notif-btn').addEventListener('click', ()=>{ renderNotifPanel(); document.getElementById('notif-modal').classList.add('open'); });
+document.getElementById('notif-btn').addEventListener('click', ()=>{
+  renderNotifPanel();
+  document.getElementById('notif-reset-all').style.display = isAdmin() ? 'inline-flex' : 'none';
+  document.getElementById('notif-modal').classList.add('open');
+});
 document.getElementById('notif-close').addEventListener('click', ()=>document.getElementById('notif-modal').classList.remove('open'));
-document.getElementById('notif-clear').addEventListener('click', ()=>{ notifications=[]; saveNotifs(); updateNotifBadge(); renderNotifPanel(); });
+document.getElementById('notif-clear').addEventListener('click', ()=>{
+  // Clear own notifications and mark all alerts as seen
+  notifications=[]; saveNotifs(); updateNotifBadge();
+  // Mark all Firebase alerts as seen for this user
+  getDocs(collection(db,'alerts')).then(snap=>{
+    snap.forEach(d=>markAlertSeen(d.id));
+  });
+  renderNotifPanel();
+});
+
+document.getElementById('notif-reset-all').addEventListener('click', async()=>{
+  if(!confirm('Tüm kullanıcıların bildirimleri sıfırlanacak. Emin misiniz?')) return;
+  try{
+    // Delete all alerts from Firebase
+    const snap = await getDocs(collection(db,'alerts'));
+    const dels = snap.docs.map(d=>deleteDoc(doc(db,'alerts',d.id)));
+    await Promise.all(dels);
+    // Clear own local notifications
+    notifications=[]; saveNotifs(); updateNotifBadge();
+    // Clear own seen list
+    localStorage.removeItem(seenKey());
+    renderNotifPanel();
+    toast('Tüm bildirimler sıfırlandı ✓','success');
+  }catch(e){ toast('Hata: '+e.message,'error'); }
+});
 
 document.getElementById('approval-btn').addEventListener('click', ()=>{ renderApprovalList(); document.getElementById('approval-modal').classList.add('open'); });
 document.getElementById('approval-close').addEventListener('click', ()=>document.getElementById('approval-modal').classList.remove('open'));

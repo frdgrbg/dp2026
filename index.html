@@ -766,9 +766,12 @@ function renderSection(c,sid){
     async()=>{ const val=document.getElementById('f-note').value.trim();
       if(val){
         await setDoc(doc(db,'tasks',nk),{key:nk,text:val,by:currentUser.name,time:nowTime()});
-        const secId=nk.split('__')[0]; const sec2=SECTIONS.find(s=>s.id===secId);
-        const deptName=sec2?.tasks?.find(d=>d.items?.some((_,i)=>nk.includes(d.d)))?.d||'';
-        await sendAlert(sec2?.title+' — Yeni Not', val, deptName, 'note');
+        // nk format: note__sid__dept__i
+        const parts=nk.split('__');
+        const secId=parts[1]||'';
+        const deptName=parts[2]||'';
+        const sec2=SECTIONS.find(s=>s.id===secId);
+        await sendAlert((sec2?.title||secId)+' — Yeni Not Eklendi', '"'+val+'"', deptName, 'note');
       } else { try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} }
       closeSub(); renderContent(); toast('Not kaydedildi ✓','success');
     }, async()=>{ try{ await deleteDoc(doc(db,'tasks',nk)); }catch(e){} closeSub(); renderContent(); toast('Not silindi','info'); });

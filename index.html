@@ -1303,7 +1303,7 @@ function renderAdminPanel(){
   const c=document.getElementById('admin-content');
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <span style="font-size:13px;color:var(--text2)">${SECTIONS.length} alan · ${SECTIONS.reduce((a,s)=>a+s.tasks.reduce((b,d)=>b+d.items.length,0),0)} görev</span>
-    <button class="btn-sm green new-sec-btn">+ Yeni Alan</button>
+    <button class="btn-sm green <button id="reset-defaults-btn" class="btn-sm" onclick="resetToDefaults()" style="color:#f87171;border-color:#f87171;margin-bottom:8px;width:100%">🔄 Varsayılan Alanları Geri Yükle</button> new-sec-btn">+ Yeni Alan</button>
   </div>`;
   SECTIONS.forEach((s,si)=>{
     const total=s.tasks.reduce((a,d)=>a+d.items.length,0);
@@ -1706,7 +1706,16 @@ function showSub(html, onSave, onDel){
   if(onDel) body.querySelector('.sub-del')?.addEventListener('click', onDel);
 }
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
-
+async function resetToDefaults(){
+  if(!confirm('Varsayılan alanlar yüklenecek. Emin misiniz?')) return;
+  try{
+    for(const sec of DEFAULT_SECTIONS){
+      await fbSaveSec(sec);
+    }
+    toast('Tüm alanlar yüklendi ✓','success');
+    renderAdminPanel(); renderSidebar(); renderContent();
+  }catch(e){ toast('Hata: '+e.message,'error'); }
+}
 </script>
 </body>
 </html>

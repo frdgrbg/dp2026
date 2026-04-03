@@ -1303,6 +1303,7 @@ function renderAdminPanel(){
   const c=document.getElementById('admin-content');
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <span style="font-size:13px;color:var(--text2)">${SECTIONS.length} alan · ${SECTIONS.reduce((a,s)=>a+s.tasks.reduce((b,d)=>b+d.items.length,0),0)} görev</span>
+  <div id="delete-requests-container" style="margin-bottom:12px"></div>
     <button class="btn-sm green <button id="reset-defaults-btn" class="btn-sm" onclick="resetToDefaults()" style="color:#f87171;border-color:#f87171;margin-bottom:8px;width:100%">🔄 Varsayılan Alanları Geri Yükle</button> new-sec-btn">+ Yeni Alan</button>
   </div>`;
   SECTIONS.forEach((s,si)=>{
@@ -1353,7 +1354,13 @@ function renderAdminPanel(){
     closeSub(); renderAdminPanel(); renderSidebar(); toast(title+' eklendi ✓','success');
   }));
 
-  c.querySelectorAll('.del-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  requestSectionDelete(btn.dataset.sid);
+}));
+```
+
+Son olarak **Ctrl+F** → şunu ara:
+```
+new-sec-btn'>+ Yeni Alan
     const sid=btn.dataset.sid; const sec=SECTIONS.find(s=>s.id===sid);
     showSub(`<h3>Alanı Sil</h3><p>"<strong>${sec?.title}</strong>" ve tüm görevleri silinecek.</p>
     <div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm sub-save" style="color:#f87171;border-color:#f87171">Kalıcı Sil</button></div>`,
@@ -1693,7 +1700,90 @@ async function tryRestoreSession(){
   window.addEventListener('pagehide', e=>{ if(!e.persisted){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } });
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
 }
-
+async function requestSectionDelete(sid){
+  const sec = SECTIONS.find(s=>s.id===sid);
+  if(!sec) return;
+  
+  if(isSuperAdmin(currentUser.name)){
+    showSub('<h3>Alanı Sil</h3><p>"<strong>'+sec.title+'</strong>" ve tüm görevleri silinecek.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm sub-save" style="color:#f87171;border-color:#f87171">Kalıcı Sil</button></div>',
+    async()=>{ 
+      await fbDelSec(sid); 
+      SECTIONS.splice(SECTIONS.findIndex(s=>s.id===sid),1); 
+      if(currentSection===sid) currentSection='overview'; 
+      closeSub(); renderAdminPanel(); renderSidebar(); renderContent(); 
+      toast('Alan silindi','info'); 
+    });
+    return;
+  }
+  
+  showSub('<h3>Silme İsteği Gönder</h3><p>"<strong>'+sec.title+'</strong>" alanını silmek için Süper Admin onayı gereklidir.</p><p style="font-size:12px;color:var(--text3);margin-top:8px">İsteğiniz Ferdi Gürboğa\'ya iletilecek ve onay/ret bildirimi alacaksınız.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">📨 İstek Gönder</button></div>',
+  async()=>{
+    const reqId = 'delreq_' + Date.now();
+    await db.collection('delete_requests').doc(reqId).set({
+      id: reqId,
+      type: 'section_delete',
+      sectionId: sid,
+      sectionTitle: sec.title,
+      requestedBy: currentUser.name,
+      requestedAt: new Date().toLocaleString('tr-TR'),
+      ts: Date.now(),
+      status: 'pending'
+    });
+    await sendAlert(
+      '🗑️ Alan Silme İsteği: ' + sec.title,
+      currentUser.name + ' bu alanı silmek istiyor. Admin panelinden onaylayabilirsiniz.',
+      '', 'task'
+    );
+    closeSub();
+    toast('Silme isteği Süper Admin\'e gönderildi ✓','success');
+  });
+}
+ 
+async function renderDeleteRequests(){
+  try{
+    const container = document.getElementById('delete-requests-container');
+    if(!container) return;
+    if(!isSuperAdmin(currentUser?.name)){ container.innerHTML=''; return; }
+    const snap = await db.collection('delete_requests').where('status','==','pending').get();
+    if(snap.empty){ container.innerHTML=''; return; }
+    let h = '<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:14px;margin-bottom:14px">';
+    h += '<div style="font-size:12px;color:#f87171;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚠️ Bekleyen Silme İstekleri ('+snap.size+')</div>';
+    snap.forEach(d=>{
+      const data = d.data();
+      h += '<div style="background:var(--bg2);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:10px 12px;margin-bottom:8px">'+
+        '<div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:3px">🗑️ '+data.sectionTitle+'</div>'+
+        '<div style="font-size:11px;color:var(--text2);margin-bottom:8px">İsteyen: '+data.requestedBy+' · '+data.requestedAt+'</div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button class="btn-sm approve-del-btn" data-id="'+d.id+'" data-sid="'+data.sectionId+'" style="color:#f87171;border-color:#f87171;flex:1;justify-content:center;font-size:11px">✓ Onayla & Sil</button>'+
+          '<button class="btn-sm reject-del-btn" data-id="'+d.id+'" data-name="'+data.requestedBy+'" data-title="'+data.sectionTitle+'" style="flex:1;justify-content:center;font-size:11px">✕ Reddet</button>'+
+        '</div>'+
+      '</div>';
+    });
+    h += '</div>';
+    container.innerHTML = h;
+    container.querySelectorAll('.approve-del-btn').forEach(btn=>{
+      btn.addEventListener('click', async()=>{
+        const sid = btn.dataset.sid;
+        const reqId = btn.dataset.id;
+        await fbDelSec(sid);
+        SECTIONS.splice(SECTIONS.findIndex(s=>s.id===sid),1);
+        await db.collection('delete_requests').doc(reqId).update({status:'approved'});
+        await sendAlert('✅ Silme İsteği Onaylandı', btn.closest('[data-title]')?.dataset.title||'Alan silindi','','task');
+        if(currentSection===sid) currentSection='overview';
+        toast('Alan silindi ✓','success');
+        renderDeleteRequests(); renderAdminPanel(); renderSidebar(); renderContent();
+      });
+    });
+    container.querySelectorAll('.reject-del-btn').forEach(btn=>{
+      btn.addEventListener('click', async()=>{
+        await db.collection('delete_requests').doc(btn.dataset.id).update({status:'rejected'});
+        await sendAlert('❌ Silme İsteği Reddedildi', '"'+btn.dataset.title+'" silme isteği reddedildi','','task');
+        toast('İstek reddedildi','info');
+        renderDeleteRequests();
+      });
+    });
+  }catch(e){ console.error('renderDeleteRequests:',e); }
+}
 // Run on page load
 tryRestoreSession();
 

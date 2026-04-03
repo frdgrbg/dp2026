@@ -882,6 +882,10 @@ function onDeptChange(){
 // Cross-browser: change + input + click + touchend for Safari/Samsung/Chrome
 const deptEl = document.getElementById('login-dept');
 ['change','input','blur'].forEach(ev=>deptEl.addEventListener(ev, onDeptChange));
+  deptEl.addEventListener('change', function(){ 
+  const val = this.value;
+  document.getElementById('pw-field').style.display = val === 'Admin' ? 'block' : 'none';
+});
 // Safari/iOS fix
 deptEl.addEventListener('touchstart', ()=>{}, {passive:true});
 setTimeout(()=>{ deptEl.addEventListener('click', onDeptChange); }, 100);

@@ -704,14 +704,14 @@ function renderAdminPanel(){
   // Süper Admin için bekleyen silme isteklerini göster
   if(isSuperAdmin(currentUser?.name)) renderDeleteRequests();
 
-  c.querySelector('.new-sec-btn').addEventListener('click',()=>showSub(`
-    <h3>Yeni Alan Ekle</h3>
-    <div class="field"><label>ALAN ADI</label><input id="f-title" placeholder="örn: Medya Tribünü"/></div>
-    <div class="field"><label>EMOJİ</label><input id="f-ico" placeholder="örn: 🎙️" maxlength="2" style="width:80px;font-size:20px"/></div>
-    <div class="field"><label>İLK DEPARTMAN</label><input id="f-dept" placeholder="örn: Teknik"/></div>
-    <div class="field"><label>GÖREVLER (her satıra bir tane)</label><textarea id="f-tasks" rows="4" placeholder="Elektrik kontrolü&#10;Priz kontrolü"></textarea></div>
-    <div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>
-  `,async()=>{
+ c.querySelector('.new-sec-btn').addEventListener('click',()=>{
+  const html = '<h3>Yeni Alan Ekle</h3>' +
+    '<div class="field"><label>ALAN ADI</label><input id="f-title" placeholder="örn: Medya Tribünü"/></div>' +
+    '<div class="field"><label>EMOJİ</label><input id="f-ico" placeholder="🎙️" maxlength="2" style="width:80px;font-size:20px"/></div>' +
+    '<div class="field"><label>İLK DEPARTMAN</label><input id="f-dept" placeholder="örn: Teknik"/></div>' +
+    '<div class="field"><label>GÖREVLER (her satıra bir tane)</label><textarea id="f-tasks" rows="4" placeholder="Elektrik kontrolü"></textarea></div>' +
+    '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet</button></div>';
+  showSub(html, async()=>{
     const title=document.getElementById('f-title').value.trim();
     const ico=document.getElementById('f-ico').value.trim()||'📋';
     const dept=document.getElementById('f-dept').value.trim();
@@ -721,7 +721,8 @@ function renderAdminPanel(){
     SECTIONS.push(sec); await fbSaveSec(sec);
     await sendAlert('Yeni Alan Eklendi: '+title,dept+' — '+items.join(', '),'','task');
     closeSub(); renderAdminPanel(); renderSidebar(); toast(title+' eklendi ✓','success');
-  }));
+  });
+});
 
   // ── FIX: Del sec btn - Süper Admin onayı ──
   c.querySelectorAll('.del-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{

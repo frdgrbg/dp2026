@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-title" content="DP 2026">
+<title>DP World Tour 2026 — Operasyon</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f0e;--bg2:#141714;--bg3:#1a1d1a;--card:#1e221e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#e8ebe6;--text2:#8a9088;--text3:#5a5e58;--green:#4ade80;--green2:#16a34a;--green3:#052e16;--amber:#fbbf24;--red:#f87171;--blue:#60a5fa;--radius:10px;--radius-lg:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background-color:#0d2e1a;background-image:linear-gradient(rgba(0,0,0,.52),rgba(0,0,0,.62)),url(golf.jpg);background-size:cover;background-position:center;background-repeat:no-repeat;padding:24px}
+.login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:40px 36px}
+.login-logo{font-size:11px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+.login-box h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.login-box p{font-size:13px;color:var(--text2);margin-bottom:32px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;letter-spacing:.04em}
+.field input,.field select,.field textarea{width:100%;padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;resize:vertical;-webkit-appearance:none;appearance:none;box-sizing:border-box}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--green)}
+.field select option{background:var(--bg2)}
+.btn-primary{width:100%;padding:12px;background:var(--green);color:#052e16;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;margin-top:8px}
+.btn-primary:hover{opacity:.9}.btn-primary:active{transform:scale(.98)}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.login-hint{font-size:11px;color:var(--text3);text-align:center;margin-top:16px}
+#app-screen{display:none;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:100;background:rgba(13,15,14,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-logo{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+.topbar-sep{width:1px;height:16px;background:var(--border2)}
+.topbar-title{font-size:13px;color:var(--text2)}
+.topbar-right{display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto;max-width:calc(100vw - 160px)}
+.user-chip{display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 6px;font-size:12px;color:var(--text2)}
+.user-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
+.btn-sm{padding:6px 12px;font-size:12px;font-weight:500;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s,color .15s;display:inline-flex;align-items:center;gap:4px}
+.btn-sm:hover{background:var(--border);color:var(--text)}
+.btn-sm.green{background:var(--green3);border-color:var(--green2);color:var(--green)}.btn-sm.green:hover{background:#0a4d22}
+.btn-sm.amber{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.4);color:var(--amber)}
+.online-bar{display:flex;align-items:center;gap:8px;padding:8px 20px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);overflow-x:auto}
+.online-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.online-chip{display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:3px 10px 3px 6px;white-space:nowrap}
+.online-chip .av{width:16px;height:16px;border-radius:50%;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.main{display:flex;height:calc(100vh - 88px)}
+.sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 10px}
+.sidebar-section{margin-bottom:6px}
+.sidebar-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);padding:6px 10px 4px}
+.sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s;font-size:13px;color:var(--text2);border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif}
+.sidebar-item:hover{background:var(--bg3);color:var(--text)}.sidebar-item.active{background:var(--green3);color:var(--green)}
+.sidebar-item .ico{font-size:15px;width:18px;text-align:center}
+.sidebar-badge{margin-left:auto;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--bg3);color:var(--text3)}
+.sidebar-item.active .sidebar-badge{background:rgba(74,222,128,.15);color:var(--green)}
+.sidebar-item.done-all .sidebar-badge{background:rgba(74,222,128,.2);color:var(--green)}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:24px}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
+.ov-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+.ov-card .ov-val{font-size:28px;font-weight:600;margin-bottom:2px;font-family:'DM Mono',monospace}
+.ov-card .ov-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.ov-card.green .ov-val{color:var(--green)}.ov-card.amber .ov-val{color:var(--amber)}.ov-card.red .ov-val{color:var(--red)}.ov-card.blue .ov-val{color:var(--blue)}
+.glob-prog{margin-bottom:28px}
+.glob-prog-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.glob-prog-top span:first-child{font-size:13px;font-weight:500}
+.glob-prog-top span:last-child{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace}
+.prog-track{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s ease}
+.sec-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-heading h2{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sec-heading h2 .sec-ico{font-size:18px}
+.task-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px}
+.dept-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.dept-header:hover{background:var(--bg3)}
+.dept-name{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.dept-prog{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.task-row{display:flex;align-items:center;gap:12px;padding:9px 16px;transition:background .12s;cursor:pointer}
+.task-row:hover{background:rgba(255,255,255,.03)}
+.task-check{width:18px;height:18px;flex-shrink:0;border:1.5px solid var(--border2);border-radius:5px;display:flex;align-items:center;justify-content:center;transition:all .15s;background:transparent}
+.task-row.done .task-check{background:var(--green);border-color:var(--green)}
+.task-check svg{display:none}.task-row.done .task-check svg{display:block}
+.task-label{font-size:13px;color:var(--text);transition:color .15s;flex:1}
+.task-row.done .task-label{color:var(--text3);text-decoration:line-through}
+.task-who{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:28px;width:100%;max-width:480px;margin:auto}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.pdf-options label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:10px;cursor:pointer}
+.pdf-options input[type=checkbox]{accent-color:var(--green)}
+#admin-modal .modal{max-width:600px;max-height:85vh;overflow-y:auto;padding:20px}
+.admin-sec-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.admin-sec-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--border)}
+#sub-modal{z-index:300}
+#sub-modal .modal{max-width:420px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bellRing{0%{transform:rotate(-15deg)}100%{transform:rotate(15deg)}}
+select{-webkit-appearance:auto;appearance:auto}
+input[type=tel]{-webkit-appearance:none;appearance:none}
+input[type=password]{-webkit-appearance:none;appearance:none}
+button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.task-row{-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+.sidebar-item{-webkit-tap-highlight-color:transparent}
+*{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.fade-up{animation:fadeUp .3s ease forwards}
+@media(max-width:640px){.sidebar{width:56px}.sidebar-item span:not(.ico){display:none}.sidebar-badge,.sidebar-label{display:none}.content{padding:16px}.overview-grid{grid-template-columns:1fr 1fr}.topbar-title{display:none}}
+</style>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+</script>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box fade-up">
+    <div class="login-logo">DP World Tour 2026</div>
+    <h1>Hoş Geldiniz</h1>
+    <p>National Golf Club — Turnuva Operasyon Sistemi</p>
+    <div class="field"><label>AD SOYAD</label><input type="text" id="login-name" placeholder="Adınızı girin" /></div>
+    <div class="field"><label>TELEFON NUMARASI</label><div style="display:flex;gap:8px"><div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;font-size:14px;color:var(--text2);white-space:nowrap">🇹🇷 +90</div><input type="tel" id="login-phone" placeholder="5XX XXX XX XX" maxlength="11" style="flex:1" /></div></div>
+    <div class="field">
+      <label>DEPARTMAN</label>
+      <select id="login-dept">
+        <option value="">Departman seçin...</option>
+        <option>Teknik</option><option>HK</option><option>F&B</option>
+        <option>Bilgi İşlem</option><option>Promoter</option><option>Resepsiyon</option>
+        <option>Mutfak</option><option>Kalite Kontrol</option><option>Ambulans</option>
+        <option>Range Operasyon</option><option>Kulüp</option><option>Marketing</option>
+        <option>Peyzaj</option><option>Muhasebe & Cost</option><option>Proshop Mağaza</option>
+        <option>Admin</option>
+      </select>
+    </div>
+    <div class="field" id="pw-field" style="display:none">
+      <label>ADMİN ŞİFRESİ</label>
+      <input type="password" id="login-pw" placeholder="Şifreyi girin" />
+    </div>
+    <div id="admin-request-field" style="display:none;margin-bottom:14px">
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--amber);text-align:center">
+        ⚠️ Admin olmak için onay gereklidir.<br>Onay isteği gönderin, yetkili kişi onayladıktan sonra giriş yapabilirsiniz.
+      </div>
+      <button class="btn-primary" id="request-admin-btn" style="background:rgba(251,191,36,.2);color:var(--amber);border:1px solid rgba(251,191,36,.4);margin-top:8px">Admin Onayı İste →</button>
+    </div>
+    <button class="btn-primary" id="login-btn">Giriş Yap →</button>
+    <div class="login-hint">taoperation.com — National Golf Club</div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="online-bar" id="online-bar"><div class="online-dot"></div></div>
+  <div id="day-bar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">DP World Tour '26</span>
+      <div class="topbar-sep"></div>
+      <span class="topbar-title">National Golf Club</span>
+    </div>
+    <div class="topbar-right">
+      <button id="approval-btn" class="btn-sm amber" style="display:none;position:relative;white-space:nowrap">👥<span id="approval-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="notif-btn" class="btn-sm" style="position:relative;white-space:nowrap">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">0</span></button>
+      <button id="daily-btn" class="btn-sm" style="white-space:nowrap;color:var(--amber);border-color:rgba(251,191,36,.4);position:relative">✅ Günlük<span id="daily-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px">!</span></button>
+      <button id="day-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--green);border-color:var(--green2)">📅</button>
+      <button id="users-btn" class="btn-sm" style="display:none;white-space:nowrap;color:var(--blue);border-color:var(--blue)">👥</button>
+      <button id="admin-btn" class="btn-sm amber" style="display:none;white-space:nowrap">⚙️</button>
+      <button class="btn-sm green" id="pdf-btn">PDF Rapor</button>
+      <div class="user-chip">
+        <div class="user-avatar" id="top-avatar"></div>
+        <span id="top-username"></span>
+      </div>
+      <button class="btn-sm" id="logout-btn">Çıkış</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="pdf-modal"><div class="modal"><h3>PDF Rapor Oluştur</h3><p>Turnuva operasyon durum raporunu indir.</p><div class="pdf-options"><label><input type="checkbox" checked id="pdf-done"> Tamamlananları göster</label><label><input type="checkbox" checked id="pdf-pending"> Bekleyenleri göster</label><label><input type="checkbox" id="pdf-timestamp"> Zaman damgası ekle</label></div><div class="modal-actions"><button class="btn-sm" id="pdf-cancel">İptal</button><button class="btn-sm green" id="pdf-download">İndir →</button></div></div></div>
+<div class="modal-overlay" id="admin-modal"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:14px;font-weight:600;color:var(--amber)">⚙️ Admin Paneli</span><button class="btn-sm" id="admin-close">✕ Kapat</button></div><div id="admin-content"></div></div></div>
+<div class="modal-overlay" id="notif-modal"><div class="modal" style="max-width:420px;max-height:80vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:14px;font-weight:600">🔔 Bildirimler</span><div style="display:flex;gap:8px"><button class="btn-sm" id="notif-clear" style="font-size:11px">Bildirimleri Temizle</button><button class="btn-sm" id="notif-reset-all" style="display:none;font-size:11px;color:#f87171;border-color:#f87171">🗑️ Herkesi Sıfırla</button><button class="btn-sm" id="notif-close">✕</button></div></div><div id="notif-list"><div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div></div></div></div>
+<div class="modal-overlay" id="daily-modal"><div class="modal" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0"><div><div style="font-size:14px;font-weight:600;color:var(--amber)">✅ Günlük Kontrol Listesi</div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="daily-day-label"></div></div><div style="display:flex;gap:8px;align-items:center"><div style="font-size:12px;font-family:DM Mono,monospace;color:var(--green)" id="daily-progress-label"></div><button class="btn-sm" id="daily-close">✕</button></div></div><div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0"><div class="prog-track"><div class="prog-fill" id="daily-prog-fill" style="width:0%"></div></div></div><div id="daily-content" style="overflow-y:auto;padding:16px;flex:1"></div></div></div>
+<div class="modal-overlay" id="day-modal"><div class="modal" style="max-width:500px;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:14px;font-weight:600;color:var(--green)">📅 Turnuva Günleri</span><button class="btn-sm" id="day-modal-close">✕ Kapat</button></div><div id="day-settings-content"></div></div></div>
+<div class="modal-overlay" id="users-modal"><div class="modal" style="max-width:500px;max-height:85vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:14px;font-weight:600;color:var(--blue)">👥 Kayıtlı Kullanıcılar</span><button class="btn-sm" id="users-close">✕ Kapat</button></div><div id="users-list"></div></div></div>
+<div class="modal-overlay" id="approval-modal"><div class="modal" style="max-width:480px;max-height:80vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:14px;font-weight:600;color:var(--amber)">⚙️ Admin Onay İstekleri</span><button class="btn-sm" id="approval-close">✕ Kapat</button></div><div id="approval-list"></div></div></div>
+<div id="big-notif" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:24px"><div style="background:#1e221e;border:2px solid #fbbf24;border-radius:20px;padding:32px;max-width:440px;width:100%;text-align:center;animation:fadeUp .4s ease"><div id="big-notif-icon" style="font-size:48px;margin-bottom:16px">📢</div><div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fbbf24;margin-bottom:8px" id="big-notif-dept"></div><div style="font-size:18px;font-weight:600;color:#e8ebe6;margin-bottom:8px" id="big-notif-title"></div><div style="font-size:14px;color:#8a9088;margin-bottom:24px" id="big-notif-body"></div><div style="font-size:11px;color:#5a5e58;margin-bottom:20px" id="big-notif-time"></div><button id="big-notif-close" style="background:#4ade80;color:#052e16;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;width:100%">Tamam, Anladım</button></div></div>
+<div class="modal-overlay" id="sub-modal"><div class="modal" id="sub-modal-body"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-firestore.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAkXjxnSnbW1M6nJwXn7QeiM151zJ9PqaE",
+  authDomain: "v0-dp-world-tour-operasyon.firebaseapp.com",
+  projectId: "v0-dp-world-tour-operasyon",
+  storageBucket: "v0-dp-world-tour-operasyon.firebasestorage.app",
+  messagingSenderId: "812178275782",
+  appId: "1:812178275782:web:4f7a82f408dd7ceffa46c7"
+};
+
+const ADMIN_PASS = "N2026";
+const SUPER_ADMIN = "Ferdi Gürboğa";
+let approvedAdmins = [];
+const isApprovedAdmin = name => approvedAdmins.includes(name) || name === SUPER_ADMIN;
+const isSuperAdmin = name => name === SUPER_ADMIN;
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const DEFAULT_SECTIONS = [
+  {id:"turnuva",ico:"🏢",title:"Turnuva Ofisleri",order:0,tasks:[
+    {d:"Teknik",items:["Elektrik kontrolü","Priz kontrolü","Klima kontrolü","TV bağlantısı"]},
+    {d:"HK",items:["Masa","Çöp kovası","Sandalye","Genel temizlik"]},
+    {d:"Bilgi İşlem / Promoter",items:["Yazıcı kurulumu","İnternet bağlantısı"]},
+    {d:"F&B",items:["Kahve setup","Su","Cookies"]},
+    {d:"Promoter",items:["Güvenlik","Yazıcı","TV"]},
+  ]},
+  {id:"fizyoterapi",ico:"💆",title:"Fizyoterapi",order:1,tasks:[
+    {d:"Teknik",items:["Elektrik kontrolü","Priz kontrolü","Klima kontrolü","TV bağlantısı","Zemin halısı"]},
+    {d:"HK",items:["Havlu","Rulo havlu / peçete","Çöp kovası","Masa","Terlik"]},
+    {d:"Bilgi İşlem",items:["İnternet bağlantısı"]},
+    {d:"F&B",items:["Kahve setup","Cookies","Su","Dergi","İngilizce gazete"]},
+    {d:"Promoter",items:["Güvenlik"]},
+  ]},
+  {id:"doktor",ico:"🏥",title:"Doktor Odası",order:2,tasks:[
+    {d:"Teknik",items:["Elektrik kontrolü","Priz kontrolü","Klima kontrolü"]},
+    {d:"HK",items:["Masa","Çöp kovası","Sandalye","Genel temizlik"]},
+    {d:"Ambulans",items:["Kalp şok cihazı (AED)"]},
+  ]},
+  {id:"spor",ico:"🏋️",title:"Spor Salonu",order:3,tasks:[
+    {d:"Teknik",items:["TV bağlantısı","Zemin halısı","Klima kontrolü"]},
+    {d:"Bilgi İşlem",items:["İnternet bağlantısı"]},
+    {d:"HK",items:["Küçük yüz havlusu","Rulo havlu / peçete","Küçük masa"]},
+    {d:"F&B",items:["Su","Protein bar"]},
+  ]},
+  {id:"bagstore",ico:"🎒",title:"Bag Store",order:4,tasks:[
+    {d:"Resepsiyon",items:["Bag tag","Günlük oyuncu isim listesi"]},
+    {d:"Teknik",items:["30 duvar askılığı (travel bag için)"]},
+    {d:"Promoter",items:["Oyuncu isimlikleri"]},
+  ]},
+  {id:"locker",ico:"🔐",title:"Locker Room",order:5,tasks:[
+    {d:"Resepsiyon",items:["Dolap yedek anahtarları","Dolap oyuncu isimlikleri kontrolü","Liste hazırlama"]},
+    {d:"Teknik",items:["Klima kontrolü","Dolaplar kontrolü"]},
+    {d:"HK",items:["Havlu","Terlik","Kişisel bakım kiti","Çöp kovaları","Genel temizlik"]},
+    {d:"Promoter",items:["Güvenlik","Dolap isimlikleri"]},
+  ]},
+  {id:"playerslounge",ico:"🛋️",title:"Players Lounge",order:6,tasks:[
+    {d:"Teknik",items:["Klima kontrolü","TV bağlantısı"]},
+    {d:"Bilgi İşlem",items:["İnternet bağlantısı"]},
+    {d:"HK",items:["Genel temizlik"]},
+    {d:"F&B",items:["Masa","Sandalye","Büfe","Dergi","İngilizce gazete"]},
+    {d:"Mutfak",items:["Büfe hazırlığı"]},
+    {d:"Promoter",items:["Güvenlik"]},
+    {d:"Kalite Kontrol",items:["Menü kontrolü","Çevre denetimi"]},
+  ]},
+  {id:"caddy",ico:"⛳",title:"Caddy Lounge & Range",order:7,tasks:[
+    {d:"Range Operasyon",items:["Piramit kurulumu","Top temizleme","Top ayrıştırma","Chipping green toplanması","Range putting green","1.çukur putting green","Range bunkerlar"]},
+    {d:"HK",items:["Genel temizlik","Çöp kovası","Antrenman green arkası tuvalet temizliği","Tuvalet kontrolü"]},
+    {d:"F&B",items:["Masa","Sandalye"]},
+    {d:"Mutfak",items:["Büfe hazırlığı"]},
+    {d:"Kalite Kontrol",items:["Menü kontrolü","Çevre denetimi"]},
+  ]},
+  {id:"saha",ico:"🏌️",title:"Saha Operasyon",order:8,tasks:[
+    {d:"Kulüp",items:["Seyirci izleme alanlarını belirleme"]},
+    {d:"Promoter",items:["Hole sign kurulumu","Board kurulumu"]},
+    {d:"Marketing",items:["Tabela kurulumu","Sign kurulumu"]},
+    {d:"Peyzaj",items:["Kulüp binası etrafı düzenleme"]},
+  ]},
+  {id:"tvcompound",ico:"📺",title:"TV Compound",order:9,tasks:[
+    {d:"Teknik",items:["İnternet pod kurulumu"]},
+    {d:"Promoter",items:["İnternet yerel firma operatör kurulumu"]},
+    {d:"F&B",items:["Kahve setup","Su","Cookies"]},
+    {d:"HK",items:["Çevre temizliği","Çöp kovaları"]},
+  ]},
+  {id:"media",ico:"📷",title:"Media Staff",order:10,tasks:[
+    {d:"Promoter",items:["Masa kurulumu","Sandalye","İnternet kablo kurulumu","Alt yapı kurulumu"]},
+    {d:"Teknik",items:["Garaj alanı duvar tadilatı","Elektrik prizleri","TV kurulumu"]},
+  ]},
+  {id:"koy",ico:"🏘️",title:"Turnuva Köyü",order:11,tasks:[
+    {d:"HK",items:["Bölge genel temizliği"]},
+    {d:"F&B",items:["Public yemek & içecek"]},
+    {d:"Mutfak",items:["Fast food menü hazırlığı"]},
+    {d:"Muhasebe & Cost",items:["Kasiyer"]},
+    {d:"Proshop Mağaza",items:["Turnuva özel baskılı ürünler"]},
+    {d:"Promoter",items:["Sponsor alanları düzenleme","Volunteer organizasyonu","Akreditasyon alanı belirleme","Giriş kontrolü","Güvenlik"]},
+  ]},
+];
+
+let SECTIONS = JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
+
+const DAILY_CHECKS = [
+  {id:'ofis',ico:'🏢',title:'Turnuva Ofisleri',dept:'Teknik',items:['Tüm bilgisayar ve ekranlar açık ve çalışır durumda','İnternet bağlantısı aktif','Klima çalışıyor, sıcaklık ayarlı','Yazıcı hazır ve mürekkep/kağıt yeterli','Çöpler boşaltıldı','Kahve makinesi hazır, su stoku yeterli']},
+  {id:'fizyoterapi_daily',ico:'💆',title:'Fizyoterapi',dept:'HK',items:['Havlu stoku kontrol edildi ve yenilendi','Kullanılmış havlular toplandı','Su ve bisküvi stoku yeterli','Klima sıcaklığı kontrol edildi','Terlik stoku yeterli','Masa ve tedavi alanı dezenfekte edildi']},
+  {id:'doktor_daily',ico:'🏥',title:'Doktor Odası',dept:'Ambulans',items:['AED pil seviyesi kontrol edildi','İlaç dolabı kontrol edildi','Son kullanma tarihleri kontrol edildi','Dezenfektan stoku yeterli','Steril malzeme stoku kontrol edildi','Acil aydınlatma çalışıyor','Ambulans hazır ve yakıt dolu']},
+  {id:'spor_daily',ico:'🏋️',title:'Spor Salonu',dept:'HK',items:['Zemin temizliği yapıldı','Ekipmanlar çalışıyor ve temiz','Havlu değişimi yapıldı','Su ve protein bar stoku yeterli','TV çalışıyor','Klima çalışıyor']},
+  {id:'bagstore_daily',ico:'🎒',title:'Bag Store',dept:'Resepsiyon',items:['Günlük oyuncu listesi güncellendi','Bag tag kontrolü yapıldı','Askı düzeni kontrol edildi','Kayıp/kayıt sorunu yok']},
+  {id:'locker_daily',ico:'🔐',title:'Locker Room',dept:'HK',items:['Sabah genel temizlik yapıldı','Duş ve tuvalet temizlendi','Sabun/şampuan/dezenfektan stoku yeterli','Sıcak su çalışıyor','Havlu değişimi yapıldı','Kişisel bakım kiti stoku kontrol edildi','Kayıp anahtar şikayeti yok']},
+  {id:'playerslounge_daily',ico:'🛋️',title:'Players Lounge',dept:'F&B',items:['Büfe dolduruldu ve düzenlendi','Menü tazeliği kontrol edildi','Servis sıcaklığı uygun','Masa ve sandalye düzeni sağlandı','Dergi/gazete yenilendi','Çay/kahve servisi hazır']},
+  {id:'caddy_daily',ico:'⛳',title:'Caddy Lounge & Range',dept:'Range Operasyon',items:['Sabah top sayımı yapıldı','Kirli toplar temizlendi ve ayrıştırıldı','Piramit düzeni kontrol edildi','Tuvalet sabah temizliği yapıldı','Tuvalet öğle kontrolü yapıldı','Büfe hazır ve stok yeterli','Çöpler boşaltıldı']},
+  {id:'saha_daily',ico:'🏌️',title:'Saha Operasyon',dept:'Promoter',items:['Hole signlar yerinde ve düzgün','Bayraklar düzgün dikilmiş','Sponsor tabelaları yerinde','Seyirci alanları güvenli','Boardlar güncel bilgiyle güncellendi','Yürüyüş yolları temiz ve engelsiz']},
+  {id:'tvcompound_daily',ico:'📺',title:'TV Compound',dept:'Teknik',items:['İnternet hız testi yapıldı (min 50Mbps)','Tüm internet podları aktif','Yayın bağlantısı test edildi','Çevre temizliği yapıldı','Ekipman soğutması çalışıyor']},
+  {id:'koy_daily',ico:'🏘️',title:'Turnuva Köyü',dept:'Muhasebe & Cost',items:['Kasa açılışı yapıldı ve sayıldı','Sabah genel alan temizliği yapıldı','2. saat alan temizliği yapıldı','4. saat alan temizliği yapıldı','Giriş kontrolü aktif','Akreditasyon sorun yok','Fast food malzeme stoku kontrol edildi','Proshop açık ve hazır','Kasa kapanış sayımı yapıldı']},
+];
+
+let activeDailyDay = localStorage.getItem('dpwt_daily_day') || 'day1';
+
+const DEFAULT_DAYS = [
+  {id:'day1',label:'1. Gün',date:'2026-05-01',desc:'Kurulum & Hazırlık'},
+  {id:'day2',label:'2. Gün',date:'2026-05-02',desc:'Pro-Am Turu'},
+  {id:'day3',label:'3. Gün',date:'2026-05-03',desc:'1. Tur'},
+  {id:'day4',label:'4. Gün',date:'2026-05-04',desc:'2. Tur'},
+  {id:'day5',label:'5. Gün',date:'2026-05-05',desc:'3. Tur'},
+  {id:'day6',label:'6. Gün',date:'2026-05-06',desc:'Final Turu'},
+];
+let tournDays = JSON.parse(JSON.stringify(DEFAULT_DAYS));
+let activeDay = localStorage.getItem('dpwt_active_day') || 'day1';
+function setActiveDay(id){ activeDay=id; localStorage.setItem('dpwt_active_day',id); renderTopDay(); renderSidebar(); renderContent(); }
+
+const DEPT_COLORS = {
+  'Teknik':{bg:'rgba(56,139,251,.1)',border:'rgba(56,139,251,.3)',text:'#60a5fa',header:'rgba(56,139,251,.2)'},
+  'HK':{bg:'rgba(74,222,128,.08)',border:'rgba(74,222,128,.25)',text:'#4ade80',header:'rgba(74,222,128,.18)'},
+  'F&B':{bg:'rgba(251,191,36,.08)',border:'rgba(251,191,36,.25)',text:'#fbbf24',header:'rgba(251,191,36,.18)'},
+  'Bilgi İşlem':{bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.3)',text:'#a78bfa',header:'rgba(167,139,250,.2)'},
+  'Bilgi İşlem / Promoter':{bg:'rgba(167,139,250,.1)',border:'rgba(167,139,250,.3)',text:'#a78bfa',header:'rgba(167,139,250,.2)'},
+  'Promoter':{bg:'rgba(232,121,249,.08)',border:'rgba(232,121,249,.25)',text:'#e879f9',header:'rgba(232,121,249,.18)'},
+  'Resepsiyon':{bg:'rgba(52,211,153,.08)',border:'rgba(52,211,153,.25)',text:'#34d399',header:'rgba(52,211,153,.18)'},
+  'Mutfak':{bg:'rgba(251,146,60,.08)',border:'rgba(251,146,60,.25)',text:'#fb923c',header:'rgba(251,146,60,.18)'},
+  'Kalite Kontrol':{bg:'rgba(248,113,113,.08)',border:'rgba(248,113,113,.25)',text:'#f87171',header:'rgba(248,113,113,.18)'},
+  'Ambulans':{bg:'rgba(248,113,113,.12)',border:'rgba(248,113,113,.4)',text:'#f87171',header:'rgba(248,113,113,.25)'},
+  'Range Operasyon':{bg:'rgba(16,185,129,.08)',border:'rgba(16,185,129,.25)',text:'#10b981',header:'rgba(16,185,129,.18)'},
+  'Kulüp':{bg:'rgba(99,153,34,.08)',border:'rgba(99,153,34,.25)',text:'#4ade80',header:'rgba(99,153,34,.18)'},
+  'Marketing':{bg:'rgba(217,70,239,.08)',border:'rgba(217,70,239,.25)',text:'#d946ef',header:'rgba(217,70,239,.18)'},
+  'Peyzaj':{bg:'rgba(52,211,153,.08)',border:'rgba(52,211,153,.25)',text:'#34d399',header:'rgba(52,211,153,.18)'},
+  'Muhasebe & Cost':{bg:'rgba(251,191,36,.08)',border:'rgba(251,191,36,.25)',text:'#fbbf24',header:'rgba(251,191,36,.18)'},
+  'Proshop Mağaza':{bg:'rgba(232,121,249,.08)',border:'rgba(232,121,249,.25)',text:'#e879f9',header:'rgba(232,121,249,.18)'},
+};
+function getDeptColor(d){ return DEPT_COLORS[d]||{bg:'rgba(255,255,255,.03)',border:'rgba(255,255,255,.08)',text:'var(--text2)',header:'rgba(255,255,255,.06)'}; }
+
+let activeDeptFilter='', priorityFilter='';
+
+const PRIORITY = {
+  high:{label:'🔴 Acil',color:'#f87171',bg:'rgba(248,113,113,.1)',border:'rgba(248,113,113,.3)'},
+  normal:{label:'🟡 Normal',color:'#fbbf24',bg:'rgba(251,191,36,.08)',border:'rgba(251,191,36,.25)'},
+  low:{label:'🟢 Düşük',color:'#4ade80',bg:'rgba(74,222,128,.06)',border:'rgba(74,222,128,.2)'},
+};
+
+let taskPriorities={}, unsubPriorities=null;
+
+function subscribePriorities(){
+  if(unsubPriorities) unsubPriorities();
+  unsubPriorities=db.collection('priorities').onSnapshot(snap=>{ taskPriorities={}; snap.forEach(d=>{ taskPriorities[d.id]=d.data().priority; }); renderContent(); });
+}
+async function setPriority(k,p){ const id=k.replace(/[|]/g,'__'); if(p) await db.collection('priorities').doc(id).set({priority:p,key:k}); else await db.collection('priorities').doc(id).delete(); }
+
+let currentUser=null, currentSection='overview', state={}, onlineUsers={}, deptOpen={};
+let unsubTasks=null, unsubUsers=null, unsubSections=null;
+
+const isAdmin=()=>currentUser?.dept==='Admin';
+const taskKey=(sid,d,i)=>activeDay+'|'+sid+'|'+d+'|'+i;
+const fbKey=k=>k.replace(/\|/g,'__');
+const slugify=t=>t.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').slice(0,30)+'-'+Date.now().toString(36);
+const randomColor=name=>{ const c=['#4ade80','#60a5fa','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9']; let h=0; for(let x of name) h=x.charCodeAt(0)+((h<<5)-h); return c[Math.abs(h)%c.length]; };
+const nowTime=()=>new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+
+const toast=(msg,type='info')=>{ const colors={success:'#4ade80',error:'#f87171',info:'#60a5fa'}; const t=document.createElement('div'); t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;background:#1e221e;border:1px solid ${colors[type]};color:#e8ebe6;padding:10px 16px;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;animation:fadeUp .3s ease;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,.4)`; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); };
+
+const fbSetTask=(k,data)=>db.collection('tasks').doc(fbKey(k)).set({key:k,...data});
+const fbDelTask=k=>db.collection('tasks').doc(fbKey(k)).delete();
+const fbSetUser=u=>db.collection('users').doc(u.name.replace(/\s/g,'_')).set({...u,ts:Date.now(),online:true});
+const fbDelUser=name=>db.collection('users').doc(name.replace(/\s/g,'_')).set({online:false,ts:Date.now()},{merge:true}).catch(()=>{});
+let heartbeatInterval=null;
+function startHeartbeat(){ if(heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval=setInterval(()=>{ if(currentUser) fbSetUser(currentUser); },30000); }
+function stopHeartbeat(){ if(heartbeatInterval){ clearInterval(heartbeatInterval); heartbeatInterval=null; } }
+const fbSaveSec=sec=>db.collection('sections').doc(sec.id).set({...sec,tasks:JSON.stringify(sec.tasks)});
+const fbDelSec=async id=>{ await db.collection('sections').doc(id).delete(); const snap=await db.collection('tasks').get(); await Promise.all(snap.docs.filter(d=>d.data().key?.includes(id)).map(d=>d.ref.delete())); };
+
+function subscribeAll(){
+  unsubSections=db.collection('sections').onSnapshot(snap=>{ if(!snap.empty){ const arr=[]; snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} }); if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); } } });
+  unsubTasks=db.collection('tasks').onSnapshot(snap=>{ state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent(); updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); });
+  unsubUsers=db.collection('users').onSnapshot(snap=>{ onlineUsers={}; snap.forEach(d=>{ const x=d.data(); onlineUsers[x.name]=x; }); renderOnlineBar(); });
+}
+
+let notifications=JSON.parse(localStorage.getItem('dpwt_notifs')||'[]');
+let unsubNotifs=null;
+function saveNotifs(){ localStorage.setItem('dpwt_notifs',JSON.stringify(notifications.slice(0,50))); }
+
+function addNotif(msg,type='info',dept='',icon='🔔',alertId=null){
+  if(alertId&&notifications.find(n=>n.alertId===alertId)) return;
+  notifications.unshift({msg,type,dept,icon,alertId,time:nowTime(),date:new Date().toLocaleDateString('tr-TR'),id:Date.now(),seen:false});
+  saveNotifs(); updateNotifBadge(); showInAppNotif(msg,type,dept,icon);
+}
+
+function updateNotifBadge(){
+  const unseen=notifications.filter(n=>!n.seen).length;
+  const badge=document.getElementById('notif-badge');
+  const btn=document.getElementById('notif-btn');
+  if(!badge) return;
+  badge.style.display=unseen>0?'block':'none';
+  badge.textContent=unseen>9?'9+':unseen;
+  if(btn){ if(unseen>0){ btn.style.animation='bellRing 0.5s ease infinite alternate'; btn.style.color='#fbbf24'; } else { btn.style.animation=''; btn.style.color=''; } }
+}
+
+function showInAppNotif(msg,type='info',dept='',icon='🔔'){
+  const colors={info:'#60a5fa',success:'#4ade80',admin:'#fbbf24'};
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;top:70px;right:16px;z-index:9999;background:#1e221e;border:1px solid ${colors[type]||colors.info};color:#e8ebe6;padding:10px 16px 12px;border-radius:12px;font-size:13px;font-family:'DM Sans',sans-serif;animation:fadeUp .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);cursor:pointer`;
+  t.innerHTML=`${dept?`<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px">📌 ${dept} Departmanı</div>`:''}
+    <div style="display:flex;align-items:flex-start;gap:8px"><span>${icon}</span><span>${msg}</span></div>`;
+  t.onclick=()=>{ t.remove(); document.getElementById('notif-btn').click(); };
+  document.body.appendChild(t); setTimeout(()=>{ if(t.parentNode) t.remove(); },5000);
+}
+
+function subscribeNotifs(){
+  unsubNotifs=db.collection('notifications').onSnapshot(snap=>{ snap.docChanges().forEach(change=>{ if(change.type==='added'){ const data=change.doc.data(); if(data.ts&&Date.now()-data.ts<10000&&data.by!==currentUser?.name) addNotif(data.msg,data.type||'admin'); } }); });
+}
+
+async function sendNotif(msg,type='admin'){
+  try{ const id='notif_'+Date.now(); await db.collection('notifications').doc(id).set({msg,type,by:currentUser.name,ts:Date.now()}); setTimeout(()=>db.collection('notifications').doc(id).delete(),30000); }catch(e){}
+}
+
+function renderNotifPanel(){
+  const list=document.getElementById('notif-list');
+  if(!notifications.length){ list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz bildirim yok</div>'; return; }
+  notifications.forEach(n=>{ n.seen=true; if(n.alertId) markAlertSeen(n.alertId); });
+  saveNotifs(); updateNotifBadge();
+  list.innerHTML=notifications.map(n=>`<div style="padding:12px 0;border-bottom:1px solid var(--border)">${n.dept?`<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px">📌 ${n.dept} Departmanı</div>`:''}<div style="display:flex;align-items:flex-start;gap:8px"><span style="font-size:16px">${n.icon||'🔔'}</span><div style="flex:1"><div style="font-size:13px;color:var(--text);line-height:1.4">${n.msg}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">${n.date} ${n.time}</div></div></div></div>`).join('');
+}
+
+let bigNotifQueue=[], bigNotifShowing=false;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('big-notif-close').addEventListener('click',()=>{
+    const currentAlertId=document.getElementById('big-notif').dataset.alertId;
+    if(currentAlertId) markAlertSeen(currentAlertId);
+    document.getElementById('big-notif').style.display='none';
+    bigNotifShowing=false;
+    if(bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
+  });
+});
+
+function showBigNotif(data){
+  if(bigNotifShowing){ bigNotifQueue.push(data); return; }
+  bigNotifShowing=true;
+  const el=document.getElementById('big-notif');
+  el.dataset.alertId=data.id||'';
+  document.getElementById('big-notif-icon').textContent=data.type==='note'?'📝':'✅';
+  document.getElementById('big-notif-dept').textContent=data.targetDept?'📌 '+data.targetDept+' Departmanı':'📢 Genel Duyuru';
+  document.getElementById('big-notif-title').textContent=data.title;
+  document.getElementById('big-notif-body').textContent=data.body||'';
+  document.getElementById('big-notif-time').textContent='Admin tarafından eklendi · '+data.time;
+  el.style.display='flex';
+}
+
+function seenKey(){ return'dpwt_seen_'+(currentUser?.name||'guest').replace(/\s/g,'_'); }
+function getSeenAlerts(){ return new Set(JSON.parse(localStorage.getItem(seenKey())||'[]')); }
+function markAlertSeen(id){ const seen=getSeenAlerts(); seen.add(id); localStorage.setItem(seenKey(),JSON.stringify([...seen].slice(-300))); }
+function isAlertSeen(id){ return getSeenAlerts().has(id); }
+
+function processAlert(id,data){
+  if(isAlertSeen(id)) return;
+  if(data.by===currentUser?.name) return;
+  addNotif(data.title+(data.body?' — '+data.body:''),'admin',data.targetDept||'',data.type==='note'?'📝':'✅',id);
+  bigNotifQueue.push({id,...data});
+  if(!bigNotifShowing&&bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
+}
+
+async function checkPendingAlerts(){
+  try{
+    const snap=await db.collection('alerts').get();
+    const pending=[];
+    snap.forEach(d=>{ const data=d.data(); const id=d.id; if(isAlertSeen(id)) return; if(data.by===currentUser?.name) return; pending.push({id,...data}); });
+    pending.sort((a,b)=>(a.ts||0)-(b.ts||0));
+    pending.forEach(a=>{ addNotif(a.title+(a.body?' — '+a.body:''),'admin',a.targetDept||'',a.type==='note'?'📝':'✅',a.id); bigNotifQueue.push(a); });
+    if(!bigNotifShowing&&bigNotifQueue.length>0) showBigNotif(bigNotifQueue.shift());
+  }catch(e){ console.error('checkPendingAlerts:',e); }
+}
+
+function subscribeAlerts(){
+  let initialized=false;
+  db.collection('alerts').onSnapshot(snap=>{ if(!initialized){ initialized=true; return; } snap.docChanges().forEach(change=>{ if(change.type==='added') processAlert(change.doc.id,change.doc.data()); }); });
+}
+
+async function sendAlert(title,body,targetDept,type='task'){
+  const id='alert_'+Date.now();
+  await db.collection('alerts').doc(id).set({title,body,targetDept:targetDept||'',type,by:currentUser.name,time:nowTime(),ts:Date.now()});
+  addNotif(title+(body?' — '+body:''),'admin',targetDept||'',type==='note'?'📝':'✅',id);
+  markAlertSeen(id);
+}
+
+let unsubApprovals=null;
+async function loadApprovedAdmins(){ try{ const snap=await db.collection('admin_whitelist').get(); approvedAdmins=snap.docs.map(d=>d.data().name); }catch(e){} }
+function subscribeApprovals(){ unsubApprovals=db.collection('admin_whitelist').onSnapshot(snap=>{ approvedAdmins=snap.docs.map(d=>d.data().name); }); }
+
+async function renderApprovalList(){
+  const snap=await db.collection('admin_whitelist').get();
+  const list=document.getElementById('approval-list');
+  const admins=snap.docs.map(d=>({id:d.id,...d.data()}));
+  list.innerHTML=`<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Admin Listesi</div><div style="display:flex;gap:8px;margin-bottom:12px"><input id="new-admin-name" placeholder="Ad Soyad girin" style="flex:1;padding:8px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;outline:none"/><button class="btn-sm green" id="add-admin-btn">+ Ekle</button></div></div><div style="font-size:11px;color:var(--text3);margin-bottom:8px">${admins.length} kişi admin yetkisine sahip</div>${admins.map(a=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px"><div><div style="font-size:13px;font-weight:500">${a.name}</div><div style="font-size:11px;color:var(--text3)">Ekleyen: ${a.addedBy||'—'} · ${a.time||''}</div></div><button class="btn-sm remove-admin-btn" data-id="${a.id}" data-name="${a.name}" style="font-size:11px;color:#f87171;border-color:#f87171">Kaldır</button></div>`).join('')}`;
+  document.getElementById('add-admin-btn').addEventListener('click',async()=>{ const name=document.getElementById('new-admin-name').value.trim(); if(!name){ toast('Ad girin','error'); return; } if(approvedAdmins.includes(name)){ toast('Bu kişi zaten listede','error'); return; } const id=name.replace(/\s/g,'_')+'_admin'; await db.collection('admin_whitelist').doc(id).set({name,addedBy:currentUser.name,time:nowTime()}); toast(name+' admin listesine eklendi ✓','success'); renderApprovalList(); });
+  list.querySelectorAll('.remove-admin-btn').forEach(btn=>btn.addEventListener('click',async()=>{ await db.collection('admin_whitelist').doc(btn.dataset.id).delete(); toast(btn.dataset.name+' listeden kaldırıldı','info'); renderApprovalList(); }));
+}
+
+async function updateApprovalBadge(){ const btn=document.getElementById('approval-btn'); if(btn&&isSuperAdmin(currentUser?.name)) btn.style.display='inline-flex'; }
+
+// ── FIX: Dept change - Admin şifre alanı ──
+function onDeptChange(){
+  const val=document.getElementById('login-dept').value;
+  const isAdm=val==='Admin';
+  document.getElementById('pw-field').style.display=isAdm?'block':'none';
+  document.getElementById('admin-request-field').style.display='none';
+  if(!isAdm) document.getElementById('login-pw').value='';
+}
+const deptEl=document.getElementById('login-dept');
+['change','input','blur','click'].forEach(ev=>deptEl.addEventListener(ev,onDeptChange));
+
+document.getElementById('login-btn').addEventListener('click',async()=>{
+  const name=document.getElementById('login-name').value.trim();
+  const dept=document.getElementById('login-dept').value;
+  const phoneRaw=document.getElementById('login-phone').value.trim().replace(/\s/g,'');
+  if(!name||!dept){ toast('Lütfen ad ve departman girin.','error'); return; }
+  if(dept!=='Admin'&&(!phoneRaw||phoneRaw.length<10)){ toast('Lütfen geçerli bir telefon numarası girin.','error'); return; }
+  if(dept==='Admin'){ const pw=document.getElementById('login-pw').value; if(pw!==ADMIN_PASS){ toast('Admin şifresi hatalı!','error'); return; } await loadApprovedAdmins(); if(!isApprovedAdmin(name)){ toast('Admin girişi için onayınız bulunmuyor. Ferdi Gürboğa ile iletişime geçin.','error'); return; } }
+  const btn=document.getElementById('login-btn');
+  btn.textContent='Bağlanıyor...'; btn.disabled=true;
+  try{
+    const fullPhone=phoneRaw?'+90'+phoneRaw:'';
+    currentUser={name,dept,phone:fullPhone,initials:name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2),color:randomColor(name)};
+    localStorage.setItem('dpwt_session',JSON.stringify(currentUser));
+    await fbSetUser(currentUser);
+    subscribeAll();
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app-screen').style.display='block';
+    document.getElementById('top-username').textContent=currentUser.name;
+    const av=document.getElementById('top-avatar');
+    av.textContent=currentUser.initials; av.style.background=currentUser.color; av.style.color='#fff';
+    if(isAdmin()){ document.getElementById('admin-btn').style.display='inline-flex'; document.getElementById('users-btn').style.display='inline-flex'; document.getElementById('day-btn').style.display='inline-flex'; }
+    toast('Bağlandı ✓','success');
+    if(currentUser.dept!=='Admin') activeDeptFilter=currentUser.dept;
+    notifications=[];
+    await loadTournDays();
+    renderTopDay();
+    subscribePriorities();
+    updateDailyBadge();
+    startHeartbeat();
+    subscribeNotifs();
+    subscribeAlerts();
+    await checkPendingAlerts();
+    await loadApprovedAdmins();
+    subscribeApprovals();
+    if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
+  }catch(e){ toast('Bağlantı hatası: '+e.message,'error'); btn.textContent='Giriş Yap →'; btn.disabled=false; }
+});
+
+document.getElementById('logout-btn').addEventListener('click',async()=>{
+  await fbDelUser(currentUser.name);
+  stopHeartbeat(); if(unsubTasks) unsubTasks(); if(unsubUsers) unsubUsers(); if(unsubSections) unsubSections(); if(unsubApprovals) unsubApprovals(); if(unsubNotifs) unsubNotifs();
+  currentUser=null; state={}; onlineUsers={}; notifications=[];
+  localStorage.removeItem('dpwt_session');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('admin-btn').style.display='none';
+  document.getElementById('approval-btn').style.display='none';
+  document.getElementById('users-btn').style.display='none';
+  document.getElementById('day-btn').style.display='none';
+  document.getElementById('login-btn').textContent='Giriş Yap →';
+  document.getElementById('login-btn').disabled=false;
+  document.getElementById('login-dept').value='';
+  document.getElementById('pw-field').style.display='none';
+});
+
+function renderOnlineBar(){
+  const bar=document.getElementById('online-bar');
+  const now=Date.now();
+  const users=Object.values(onlineUsers).filter(u=>u.online&&u.ts&&(now-u.ts)<120000);
+  bar.innerHTML=`<div class="online-dot"></div><span style="margin-right:6px;white-space:nowrap;flex-shrink:0">${users.length} çevrimiçi</span>`;
+  users.forEach(u=>{ const c=document.createElement('div'); c.className='online-chip'; c.innerHTML=`<div class="av" style="background:${u.color||'#4ade80'};color:#fff">${u.initials}</div>${u.name.split(' ')[0]}`; bar.appendChild(c); });
+}
+
+function renderSidebar(){
+  const sb=document.getElementById('sidebar');
+  let h=`<div class="sidebar-section"><div class="sidebar-label">Genel</div><button class="sidebar-item ${currentSection==='overview'?'active':''}" data-sec="overview"><span class="ico">📊</span><span>Özet</span></button></div><div class="sidebar-section"><div class="sidebar-label">Alanlar</div>`;
+  SECTIONS.forEach(s=>{ const{done,total}=secStats(s.id); const allDone=done===total&&total>0; h+=`<button class="sidebar-item ${currentSection===s.id?'active':''} ${allDone?'done-all':''}" data-sec="${s.id}"><span class="ico">${s.ico}</span><span>${s.title}</span><span class="sidebar-badge">${done}/${total}</span></button>`; });
+  sb.innerHTML=h+`</div>`;
+  sb.querySelectorAll('.sidebar-item').forEach(btn=>btn.addEventListener('click',()=>{ if(btn.dataset.sec!==currentSection){ activeDeptFilter=currentUser?.dept!=='Admin'?currentUser?.dept||'':''; priorityFilter=''; } currentSection=btn.dataset.sec; renderSidebar(); renderContent(); }));
+}
+
+function secStats(sid){ const sec=SECTIONS.find(s=>s.id===sid); if(!sec) return{done:0,total:0}; let done=0,total=0; sec.tasks.forEach(d=>d.items.forEach((_,i)=>{ total++; if(state[taskKey(sid,d.d,i)]?.done) done++; })); return{done,total}; }
+function globalStats(){ let done=0,total=0,secsDone=0; SECTIONS.forEach(s=>{ const st=secStats(s.id); done+=st.done; total+=st.total; if(st.done===st.total&&st.total>0) secsDone++; }); return{done,total,secsDone,pending:total-done}; }
+function renderContent(){ const c=document.getElementById('content'); currentSection==='overview'?renderOverview(c):renderSection(c,currentSection); }
+
+function renderOverview(c){
+  const{done,total,secsDone,pending}=globalStats(); const pct=total?Math.round(done/total*100):0;
+  let h=`<div class="fade-up"><div style="margin-bottom:24px"><div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">GENEL DURUM</div><h2 style="font-size:22px;font-weight:600">Turnuva Operasyon Özeti</h2><div style="font-size:11px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:#4ade80;padding:6px 12px;border-radius:8px;margin-top:8px;display:inline-block">🟢 Firebase bağlı — gerçek zamanlı sync aktif</div></div>
+  <div class="overview-grid"><div class="ov-card green"><div class="ov-val">${pct}%</div><div class="ov-lbl">Tamamlanan</div></div><div class="ov-card blue"><div class="ov-val">${done}</div><div class="ov-lbl">Görev Yapıldı</div></div><div class="ov-card amber"><div class="ov-val">${pending}</div><div class="ov-lbl">Bekliyor</div></div><div class="ov-card red"><div class="ov-val">${SECTIONS.length-secsDone}</div><div class="ov-lbl">Alan Bekliyor</div></div></div>
+  <div class="glob-prog"><div class="glob-prog-top"><span>Genel İlerleme</span><span>${done} / ${total} görev</span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div></div>
+  <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px">ALAN BAZINDA DURUM</div>`;
+  SECTIONS.forEach(s=>{ const{done:d,total:t}=secStats(s.id); const p=t?Math.round(d/t*100):0; const clr=p===100?'var(--green)':p>50?'var(--amber)':'var(--text3)'; h+=`<div class="sec-row" data-id="${s.id}" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px"><span style="font-size:18px;width:24px;text-align:center">${s.ico}</span><span style="font-size:13px;flex:1;font-weight:500">${s.title}</span><div style="width:80px"><div class="prog-track" style="height:4px"><div class="prog-fill" style="width:${p}%;background:${clr}"></div></div></div><span style="font-size:12px;font-family:'DM Mono',monospace;color:${clr};min-width:48px;text-align:right">${d}/${t}</span></div>`; });
+  c.innerHTML=h+`</div>`;
+  c.querySelectorAll('.sec-row').forEach(el=>el.addEventListener('click',()=>{ currentSection=el.dataset.id; renderSidebar(); renderContent(); }));
+}
+
+function renderSection(c,sid){
+  const sec=SECTIONS.find(s=>s.id===sid); if(!sec){ currentSection='overview'; renderContent(); return; }
+  const{done,total}=secStats(sid); const pct=total?Math.round(done/total*100):0;
+  const allDepts=sec.tasks.map(d=>d.d);
+  let filterHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Dept:</span><button class="dept-filter-btn" data-dept="" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:${!activeDeptFilter?'var(--green3)':'var(--bg3)'};color:${!activeDeptFilter?'var(--green)':'var(--text2)'};cursor:pointer">Tümü</button>`;
+  allDepts.forEach(d=>{ const col=getDeptColor(d); const isActive=activeDeptFilter===d; filterHtml+=`<button class="dept-filter-btn" data-dept="${d}" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${isActive?col.text:col.border};background:${isActive?col.header:col.bg};color:${col.text};cursor:pointer">${d}</button>`; });
+  filterHtml+=`</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center"><span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Öncelik:</span><button class="pri-filter-btn" data-pri="" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:${!priorityFilter?'var(--bg3)':'transparent'};color:var(--text2);cursor:pointer">Tümü</button>${Object.entries(PRIORITY).map(([k,v])=>`<button class="pri-filter-btn" data-pri="${k}" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${priorityFilter===k?v.color:v.border};background:${priorityFilter===k?v.bg:'transparent'};color:${v.color};cursor:pointer">${v.label}</button>`).join('')}</div>`;
+
+  let h=`<div class="fade-up"><div class="sec-heading"><h2><span class="sec-ico">${sec.ico}</span>${sec.title}</h2><div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:var(--text2);font-family:'DM Mono',monospace">${done}/${total}</span>${isAdmin()?`<button class="btn-sm admin-edit-btn" data-sid="${sid}" style="font-size:11px;padding:4px 10px">✏️ Düzenle</button>`:''}</div></div><div class="glob-prog" style="margin-bottom:16px"><div class="prog-track"><div class="prog-fill" style="width:${pct}%"></div></div></div>${filterHtml}`;
+
+  sec.tasks.forEach(dept=>{
+    const isFiltered=activeDeptFilter&&activeDeptFilter!==dept.d; if(isFiltered) return;
+    const col=getDeptColor(dept.d); const dc=dept.items.filter((_,i)=>state[taskKey(sid,dept.d,i)]?.done).length;
+    const dk=(sid+'_'+dept.d).replace(/[^a-zA-Z0-9]/g,'_'); const open=deptOpen[dk]!==false;
+    h+=`<div class="task-card" style="border-color:${col.border};background:${col.bg}"><div class="dept-header" data-dk="${dk}" style="background:${col.header};border-color:${col.border}"><span class="dept-name" style="color:${col.text}">${dept.d}</span><span class="dept-prog">${dc}/${dept.items.length}</span></div><div class="dept-body" id="db-${dk}" style="display:${open?'block':'none'}">`;
+    dept.items.forEach((item,i)=>{ const k=taskKey(sid,dept.d,i); const s=state[k]; const isDone=s?.done; const noteKey='note__'+fbKey(k); const note=state[noteKey]?.text||''; const pri=getPriority(k); const priInfo=pri?PRIORITY[pri]:null; if(priorityFilter&&pri!==priorityFilter) return;
+      h+=`<div style="border-bottom:1px solid ${col.border}${priInfo?';border-left:3px solid '+priInfo.color:''}"><div class="task-row ${isDone?'done':''}" data-k="${k}" data-sid="${sid}" style="border-bottom:none"><div class="task-check" style="${isDone?'':'border-color:'+col.border}"><svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#052e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="task-label">${item}</span><div style="display:flex;align-items:center;gap:6px">${priInfo?priorityBadge(pri):''}${isDone?`<span class="task-who">${s.who} ${s.time||''}</span>`:''}${isAdmin()?`<select class="pri-select" data-k="${k}" style="background:transparent;border:none;font-size:11px;color:var(--text3);cursor:pointer;outline:none;max-width:70px"><option value="" ${!pri?'selected':''}>—</option><option value="high" ${pri==='high'?'selected':''}>🔴 Acil</option><option value="normal" ${pri==='normal'?'selected':''}>🟡 Normal</option><option value="low" ${pri==='low'?'selected':''}>🟢 Düşük</option></select><button class="note-btn" data-nk="${noteKey}" data-sid="${sid}" data-dept="${dept.d}" data-label="${item.replace(/"/g,'')}" style="background:none;border:none;cursor:pointer;font-size:13px;color:${note?'var(--amber)':'var(--text3)'}" title="${note?'Notu düzenle':'Not ekle'}">${note?'💬':'＋'}</button>`:''}</div></div>${note?`<div style="padding:4px 16px 8px 46px;font-size:12px;color:var(--amber);background:rgba(251,191,36,.05);border-top:1px dashed rgba(251,191,36,.2)">📝 ${note}</div>`:''}</div>`;
+    });
+    h+=`</div></div>`;
+  });
+  c.innerHTML=h+`</div>`;
+  c.querySelectorAll('.dept-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{ activeDeptFilter=btn.dataset.dept; renderContent(); }));
+  c.querySelectorAll('.pri-filter-btn').forEach(btn=>btn.addEventListener('click',()=>{ priorityFilter=btn.dataset.pri; renderContent(); }));
+  c.querySelectorAll('.pri-select').forEach(sel=>{ sel.addEventListener('click',e=>e.stopPropagation()); sel.addEventListener('change',async(e)=>{ e.stopPropagation(); await setPriority(sel.dataset.k,sel.value); toast('Öncelik güncellendi ✓','success'); }); });
+  c.querySelectorAll('.dept-header').forEach(el=>el.addEventListener('click',()=>{ const dk=el.dataset.dk; const body=document.getElementById('db-'+dk); const open=body.style.display!=='none'; body.style.display=open?'none':'block'; deptOpen[dk]=!open; }));
+  c.querySelectorAll('.task-row').forEach(el=>el.addEventListener('click',async(e)=>{ if(e.target.closest('.note-btn')) return; if(e.target.closest('.pri-select')) return; const k=el.dataset.k; try{ if(state[k]?.done) await fbDelTask(k); else await fbSetTask(k,{done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); }catch(e){ toast('Kayıt hatası','error'); } }));
+  c.querySelectorAll('.note-btn').forEach(el=>el.addEventListener('click',e=>{
+    e.stopPropagation(); const nk=el.dataset.nk; const label=el.dataset.label; const deptName=el.dataset.dept||''; const secId=el.dataset.sid||''; const sec2=SECTIONS.find(s=>s.id===secId); const cur=state[nk]?.text||'';
+    showSub(`<h3>Görev Notu</h3><p style="font-size:11px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">📌 ${deptName}</p><p style="font-size:12px;color:var(--text2);margin-bottom:12px">${label}</p><div class="field"><label>NOT</label><textarea id="f-note" rows="4" placeholder="Bu görev için not ekleyin...">${cur}</textarea></div><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button>${cur?'<button class="btn-sm sub-del" style="color:#f87171;border-color:#f87171">Notu Sil</button>':''}<button class="btn-sm green sub-save">Kaydet →</button></div>`,
+    async()=>{ const val=document.getElementById('f-note').value.trim(); if(val){ await db.collection('tasks').doc(nk).set({key:nk,text:val,by:currentUser.name,time:nowTime()}); const alertTitle=(sec2?.title||secId)+' / '+deptName+' — Not Eklendi'; const alertBody=label+': "'+val+'"'; await sendAlert(alertTitle,alertBody,deptName,'note'); toast('Not kaydedildi ✓','success'); } else { try{ await db.collection('tasks').doc(nk).delete(); }catch(e){} toast('Not silindi','info'); } closeSub(); renderContent(); },
+    async()=>{ try{ await db.collection('tasks').doc(nk).delete(); }catch(e){} closeSub(); renderContent(); toast('Not silindi','info'); });
+  }));
+  if(isAdmin()) c.querySelectorAll('.admin-edit-btn').forEach(el=>el.addEventListener('click',()=>{ openAdmin(); }));
+}
+
+document.getElementById('pdf-btn').addEventListener('click',()=>document.getElementById('pdf-modal').classList.add('open'));
+document.getElementById('pdf-cancel').addEventListener('click',()=>document.getElementById('pdf-modal').classList.remove('open'));
+document.getElementById('pdf-download').addEventListener('click',()=>{
+  const inclDone=document.getElementById('pdf-done').checked;
+  const inclPending=document.getElementById('pdf-pending').checked;
+  const ts=document.getElementById('pdf-timestamp').checked;
+  const{done,total}=globalStats(); const pct=total?Math.round(done/total*100):0;
+  const day=tournDays.find(d=>d.id===activeDay);
+  let html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>DP World Tour 2026 Rapor</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f0;color:#1a1a1a;padding:20px}.header{background:linear-gradient(135deg,#0d1f0d,#1a3d1a);color:white;padding:24px 28px;border-radius:12px;margin-bottom:16px}.header h1{font-size:18px;font-weight:700;margin-bottom:4px}.header p{font-size:12px;opacity:.8;margin-top:2px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}.stat{background:white;border-radius:10px;padding:14px;text-align:center}.stat .val{font-size:26px;font-weight:700;margin-bottom:2px}.stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#888}.stat.g .val{color:#16a34a}.stat.r .val{color:#dc2626}.stat.a .val{color:#d97706}.stat.b .val{color:#2563eb}.pbar{background:white;border-radius:10px;padding:14px;margin-bottom:16px}.pbar h3{font-size:12px;font-weight:600;margin-bottom:8px;color:#555}.track{background:#e5e7eb;border-radius:6px;height:10px;overflow:hidden}.fill{height:10px;border-radius:6px;background:linear-gradient(90deg,#16a34a,#4ade80)}.sec{background:white;border-radius:10px;margin-bottom:14px;overflow:hidden}.sh{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;background:#f8fdf8;border-bottom:2px solid #dcfce7}.st{font-size:14px;font-weight:700}.sb{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:#dcfce7;color:#16a34a}.dh{padding:7px 15px;background:#fafafa;border-bottom:1px solid #eee;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}.ti{display:flex;align-items:flex-start;gap:9px;padding:8px 15px;border-bottom:1px solid #fafafa}.td{background:#f0fdf4}.tp{background:#fff5f5}.ck{width:17px;height:17px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;margin-top:1px}.ck-d{background:#16a34a;color:white}.ck-p{background:#fee2e2;border:2px solid #dc2626;color:#dc2626}.tt{flex:1;font-size:12px;line-height:1.4}.tt-d{color:#15803d;font-weight:500}.tt-p{color:#b91c1c}.tw{font-size:10px;color:#16a34a;margin-top:2px}.nt{font-size:10px;color:#92400e;background:#fffbeb;padding:3px 7px;border-radius:4px;margin-top:3px;border-left:3px solid #fbbf24}.foot{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb}</style></head><body>`;
+  html+=`<div class="header"><h1>✈️ TURKISH AIRLINES DP WORLD TOUR 2026</h1><p>National Golf Club — Operasyon Raporu</p>${day?`<p>${day.label}: ${day.desc} — ${new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})}</p>`:''} ${ts?`<p>Rapor Tarihi: ${new Date().toLocaleString('tr-TR')}</p>`:''}<p>Hazırlayan: ${currentUser.name} (${currentUser.dept})</p></div><div class="stats"><div class="stat g"><div class="val">%${pct}</div><div class="lbl">Tamamlanan</div></div><div class="stat b"><div class="val">${done}</div><div class="lbl">Yapıldı</div></div><div class="stat r"><div class="val">${total-done}</div><div class="lbl">Bekliyor</div></div><div class="stat a"><div class="val">${SECTIONS.length}</div><div class="lbl">Alan</div></div></div><div class="pbar"><h3>Genel İlerleme: ${done} / ${total} görev</h3><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  SECTIONS.forEach(s=>{ const{done:d,total:t}=secStats(s.id); let sHtml=''; let hasContent=false; s.tasks.forEach(dept=>{ let dHtml=''; dept.items.forEach((item,i)=>{ const k=taskKey(s.id,dept.d,i); const isDone=state[k]?.done; const nk='note__'+fbKey(k); const note=state[nk]?.text||''; if((isDone&&inclDone)||(!isDone&&inclPending)){ hasContent=true; dHtml+=`<div class="ti ${isDone?'td':'tp'}"><div class="ck ${isDone?'ck-d':'ck-p'}">${isDone?'✓':'✕'}</div><div style="flex:1"><div class="tt ${isDone?'tt-d':'tt-p'}">${item}</div>${isDone&&state[k]?.who?`<div class="tw">✓ ${state[k].who} — ${state[k].time||''}</div>`:''} ${note?`<div class="nt">📝 ${note}</div>`:''}</div></div>`; } }); if(dHtml) sHtml+=`<div class="dh">${dept.d}</div>${dHtml}`; }); if(hasContent){ const sp=t?Math.round(d/t*100):0; html+=`<div class="sec"><div class="sh"><div class="st">${s.ico} ${s.title}</div><div style="display:flex;align-items:center;gap:8px"><div style="width:70px;background:#e5e7eb;border-radius:3px;height:5px"><div style="width:${sp}%;background:#16a34a;height:5px;border-radius:3px"></div></div><span class="sb">${d}/${t}</span></div></div>${sHtml}</div>`; } });
+  html+=`<div class="foot">DP World Tour 2026 — taoperation.com — ${new Date().toLocaleDateString('tr-TR')}</div></body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='dpwt2026_rapor_'+new Date().toISOString().slice(0,10)+'.html'; a.click();
+  document.getElementById('pdf-modal').classList.remove('open'); toast('Rapor indirildi ✓','success');
+});
+
+document.getElementById('admin-btn').addEventListener('click',openAdmin);
+document.getElementById('admin-close').addEventListener('click',()=>document.getElementById('admin-modal').classList.remove('open'));
+document.getElementById('notif-btn').addEventListener('click',()=>{ renderNotifPanel(); document.getElementById('notif-reset-all').style.display=isAdmin()?'inline-flex':'none'; document.getElementById('notif-modal').classList.add('open'); });
+document.getElementById('notif-close').addEventListener('click',()=>document.getElementById('notif-modal').classList.remove('open'));
+document.getElementById('notif-clear').addEventListener('click',()=>{ notifications=[]; saveNotifs(); updateNotifBadge(); db.collection('alerts').get().then(snap=>{ snap.forEach(d=>markAlertSeen(d.id)); }); renderNotifPanel(); });
+document.getElementById('notif-reset-all').addEventListener('click',async()=>{ if(!confirm('Tüm kullanıcıların bildirimleri sıfırlanacak. Emin misiniz?')) return; try{ const snap=await db.collection('alerts').get(); await Promise.all(snap.docs.map(d=>db.collection('alerts').doc(d.id).delete())); notifications=[]; saveNotifs(); updateNotifBadge(); localStorage.removeItem(seenKey()); renderNotifPanel(); toast('Tüm bildirimler sıfırlandı ✓','success'); }catch(e){ toast('Hata: '+e.message,'error'); } });
+document.getElementById('approval-btn').addEventListener('click',()=>{ renderApprovalList(); document.getElementById('approval-modal').classList.add('open'); });
+document.getElementById('approval-close').addEventListener('click',()=>document.getElementById('approval-modal').classList.remove('open'));
+
+function openAdmin(){ renderAdminPanel(); document.getElementById('admin-modal').classList.add('open'); }
+
+function renderAdminPanel(){
+  const c=document.getElementById('admin-content');
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:13px;color:var(--text2)">${SECTIONS.length} alan · ${SECTIONS.reduce((a,s)=>a+s.tasks.reduce((b,d)=>b+d.items.length,0),0)} görev</span><button class="btn-sm green new-sec-btn">+ Yeni Alan</button></div>`;
+  
+  // Süper Admin için bekleyen silme istekleri
+  h += `<div id="delete-requests-container" style="margin-bottom:12px"></div>`;
+  
+  SECTIONS.forEach((s,si)=>{
+    const total=s.tasks.reduce((a,d)=>a+d.items.length,0);
+    h+=`<div class="admin-sec-card"><div class="admin-sec-header"><span style="font-size:16px">${s.ico}</span><span style="font-size:13px;font-weight:500;flex:1">${s.title}</span><span style="font-size:11px;color:var(--text3);margin-right:6px">${total} görev</span>`;
+    
+    // Silme butonu - Süper Admin için direkt sil, diğerleri için istek gönder
+    if(isSuperAdmin(currentUser?.name)){
+      h+=`<button class="btn-sm del-sec-btn" data-sid="${s.id}" style="font-size:11px;padding:3px 8px;color:#f87171;border-color:#f87171">🗑️ Sil</button>`;
+    } else {
+      h+=`<button class="btn-sm del-sec-btn" data-sid="${s.id}" style="font-size:11px;padding:3px 8px;color:#fbbf24;border-color:#fbbf24">📨 Sil İste</button>`;
+    }
+    
+    h+=`</div><div style="padding:8px 12px">`;
+    s.tasks.forEach((dept,di)=>{
+      h+=`<div style="margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${dept.d}</span><div style="display:flex;gap:4px"><button class="btn-sm add-task-btn" data-sid="${s.id}" data-di="${di}" style="font-size:10px;padding:2px 7px">+ Görev</button><button class="btn-sm del-dept-btn" data-sid="${s.id}" data-di="${di}" style="font-size:10px;padding:2px 7px;color:#f87171;border-color:#f87171">Sil</button></div></div>`;
+      dept.items.forEach((item,ii)=>{ h+=`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;flex:1;color:var(--text2)">${item}</span><button class="edit-task-btn" data-sid="${s.id}" data-di="${di}" data-ii="${ii}" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text3)">✏️</button><button class="del-task-btn" data-sid="${s.id}" data-di="${di}" data-ii="${ii}" style="background:none;border:none;cursor:pointer;font-size:12px;color:#f87171">✕</button></div>`; });
+      h+=`</div>`;
+    });
+    h+=`<button class="btn-sm add-dept-btn" data-sid="${s.id}" style="font-size:11px;margin-top:4px;width:100%">+ Departman Ekle</button></div></div>`;
+  });
+  
+  // Varsayılan alanları yükle (sadece Süper Admin)
+  if(isSuperAdmin(currentUser?.name)){
+    h+=`<button class="btn-sm" onclick="resetToDefaults()" style="color:#f87171;border-color:#f87171;margin-top:8px;width:100%">🔄 Varsayılan Alanları Yükle</button>`;
+  }
+  
+  c.innerHTML=h;
+  
+  // Süper Admin için bekleyen silme isteklerini göster
+  if(isSuperAdmin(currentUser?.name)) renderDeleteRequests();
+
+  c.querySelector('.new-sec-btn').addEventListener('click',()=>{
+    const h2 = '<h3>Yeni Alan Ekle</h3>' +
+      '<div class="field"><label>ALAN ADI</label><input id="f-title" placeholder="örn: Medya Tribünü"/></div>' +
+      '<div class="field"><label>EMOJİ</label><input id="f-ico" placeholder="🎙️" maxlength="2" style="width:80px;font-size:20px"/></div>' +
+      '<div class="field"><label>İLK DEPARTMAN</label><input id="f-dept" placeholder="örn: Teknik"/></div>' +
+      '<div class="field"><label>GÖREVLER (her satıra bir tane)</label><textarea id="f-tasks" rows="4" placeholder="Elektrik kontrolü"></textarea></div>' +
+      '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet</button></div>';
+    showSub(h2, async()=>{
+      const title=document.getElementById('f-title').value.trim();
+      const ico=document.getElementById('f-ico').value.trim()||'📋';
+      const dept=document.getElementById('f-dept').value.trim();
+      const items=document.getElementById('f-tasks').value.split('\n').map(t=>t.trim()).filter(Boolean);
+      if(!title||!dept){ toast('Alan adı ve departman zorunlu.','error'); return; }
+      const sec={id:slugify(title),ico,title,order:SECTIONS.length,tasks:[{d:dept,items:items.length?items:['Görev 1']}]};
+      SECTIONS.push(sec); await fbSaveSec(sec);
+      await sendAlert('Yeni Alan Eklendi: '+title,dept+' — '+items.join(', '),'','task');
+      closeSub(); renderAdminPanel(); renderSidebar(); toast(title+' eklendi ✓','success');
+    });
+  });
+
+  // ── FIX: Del sec btn - Süper Admin onayı ──
+  c.querySelectorAll('.del-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    requestSectionDelete(btn.dataset.sid);
+  }));
+
+  c.querySelectorAll('.add-dept-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const sid=btn.dataset.sid;
+    showSub(`<h3>Departman Ekle</h3><div class="field"><label>DEPARTMAN ADI</label><input id="f-dept" placeholder="örn: Güvenlik"/></div><div class="field"><label>GÖREVLER (her satıra bir tane)</label><textarea id="f-tasks" rows="4" placeholder="Giriş kontrolü&#10;Alan güvenliği"></textarea></div><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>`,
+    async()=>{ const dept=document.getElementById('f-dept').value.trim(); const items=document.getElementById('f-tasks').value.split('\n').map(t=>t.trim()).filter(Boolean); if(!dept){ toast('Departman adı zorunlu.','error'); return; } const sec=SECTIONS.find(s=>s.id===sid); sec.tasks.push({d:dept,items:items.length?items:['Görev 1']}); await fbSaveSec(sec); closeSub(); renderAdminPanel(); renderSidebar(); toast('Departman eklendi ✓','success'); });
+  }));
+
+  c.querySelectorAll('.add-task-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const{sid,di}=btn.dataset; const sec=SECTIONS.find(s=>s.id===sid);
+    showSub(`<h3>Görev Ekle</h3><p>${sec?.title} → ${sec?.tasks[di]?.d}</p><div class="field"><label>GÖREVLER (her satıra bir tane)</label><textarea id="f-tasks" rows="5" placeholder="Masa kurulumu&#10;Sandalye"></textarea></div><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>`,
+    async()=>{ const items=document.getElementById('f-tasks').value.split('\n').map(t=>t.trim()).filter(Boolean); if(!items.length){ toast('En az bir görev girin.','error'); return; } sec.tasks[di].items.push(...items); await fbSaveSec(sec); await sendAlert(sec.title+' — Yeni Görev Eklendi',items.join(', '),sec.tasks[di].d,'task'); closeSub(); renderAdminPanel(); renderSidebar(); toast(items.length+' görev eklendi ✓','success'); });
+  }));
+
+  c.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const{sid,di,ii}=btn.dataset; const sec=SECTIONS.find(s=>s.id===sid); const cur=sec?.tasks[di]?.items[ii]||'';
+    showSub(`<h3>Görevi Düzenle</h3><div class="field"><label>GÖREV ADI</label><input id="f-task" value="${cur.replace(/"/g,'&quot;')}"/></div><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>`,
+    async()=>{ const val=document.getElementById('f-task').value.trim(); if(!val){ toast('Boş olamaz.','error'); return; } sec.tasks[di].items[ii]=val; await fbSaveSec(sec); closeSub(); renderAdminPanel(); if(currentSection===sid) renderContent(); toast('Güncellendi ✓','success'); });
+  }));
+
+  c.querySelectorAll('.del-task-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const{sid,di,ii}=btn.dataset; const sec=SECTIONS.find(s=>s.id===sid); const item=sec?.tasks[di]?.items[ii];
+    showSub(`<h3>Görevi Sil</h3><p>"<strong>${item}</strong>" silinecek.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm sub-save" style="color:#f87171;border-color:#f87171">Sil</button></div>`,
+    async()=>{ sec.tasks[di].items.splice(Number(ii),1); if(!sec.tasks[di].items.length) sec.tasks.splice(Number(di),1); await fbSaveSec(sec); closeSub(); renderAdminPanel(); if(currentSection===sid) renderContent(); toast('Silindi','info'); });
+  }));
+
+  c.querySelectorAll('.del-dept-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const{sid,di}=btn.dataset; const sec=SECTIONS.find(s=>s.id===sid);
+    showSub(`<h3>Departmanı Sil</h3><p>"<strong>${sec?.tasks[di]?.d}</strong>" departmanı silinecek.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm sub-save" style="color:#f87171;border-color:#f87171">Sil</button></div>`,
+    async()=>{ sec.tasks.splice(Number(di),1); await fbSaveSec(sec); closeSub(); renderAdminPanel(); if(currentSection===sid) renderContent(); toast('Departman silindi','info'); });
+  }));
+}
+
+// ── Tournament Day System ──
+function renderTopDay(){
+  const bar=document.getElementById('day-bar');
+  if(!bar) return;
+  const today=new Date().toISOString().slice(0,10);
+  let h='';
+  tournDays.forEach(d=>{
+    const isActive=activeDay===d.id;
+    const isToday=d.date===today;
+    const dateStr=new Date(d.date).toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+    h+=`<button class="day-pill" data-id="${d.id}" style="display:flex;flex-direction:column;align-items:center;padding:6px 12px;border-radius:10px;border:1px solid ${isActive?'var(--green)':isToday?'rgba(74,222,128,.3)':'var(--border)'};background:${isActive?'var(--green3)':isToday?'rgba(74,222,128,.05)':'transparent'};cursor:pointer;white-space:nowrap;flex-shrink:0"><span style="font-size:11px;font-weight:600;color:${isActive?'var(--green)':isToday?'var(--green)':'var(--text2)'}">${d.label}</span><span style="font-size:10px;color:${isActive?'var(--green)':'var(--text3)'}">${dateStr}</span><span style="font-size:9px;color:${isActive?'var(--green)':'var(--text3)'}">${d.desc}</span></button>`;
+  });
+  bar.innerHTML=h;
+  bar.querySelectorAll('.day-pill').forEach(btn=>btn.addEventListener('click',()=>setActiveDay(btn.dataset.id)));
+}
+
+async function loadTournDays(){
+  try{ const snap=await db.collection('tourn_days').get(); if(!snap.empty){ tournDays=snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date)); } }catch(e){}
+}
+async function saveTournDay(day){ await db.collection('tourn_days').doc(day.id).set(day); }
+
+function renderDaySettings(){
+  const c=document.getElementById('day-settings-content');
+  let h=`<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Turnuva Günleri</div>`;
+  tournDays.forEach((d,i)=>{
+    h+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:var(--text);flex:1">${d.label}</span><button class="btn-sm del-day-btn" data-idx="${i}" style="font-size:10px;padding:2px 8px;color:#f87171;border-color:#f87171">Sil</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">LABEL</div><input class="day-field" data-idx="${i}" data-field="label" value="${d.label}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">TARİH</div><input type="date" class="day-field" data-idx="${i}" data-field="date" value="${d.date}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div style="grid-column:span 2"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">AÇIKLAMA</div><input class="day-field" data-idx="${i}" data-field="desc" value="${d.desc}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div></div></div>`;
+  });
+  h+=`</div><div style="display:flex;gap:8px"><button class="btn-sm green" id="add-day-btn" style="flex:1;justify-content:center">+ Gün Ekle</button><button class="btn-sm green" id="save-days-btn" style="flex:1;justify-content:center">💾 Kaydet</button></div>`;
+  c.innerHTML=h;
+  c.querySelectorAll('.day-field').forEach(inp=>inp.addEventListener('change',()=>{ tournDays[inp.dataset.idx][inp.dataset.field]=inp.value; }));
+  c.querySelectorAll('.del-day-btn').forEach(btn=>btn.addEventListener('click',()=>{ tournDays.splice(Number(btn.dataset.idx),1); renderDaySettings(); }));
+  document.getElementById('add-day-btn').addEventListener('click',()=>{ const n=tournDays.length+1; tournDays.push({id:'day'+n,label:n+'. Gün',date:'2026-05-0'+n,desc:'Açıklama'}); renderDaySettings(); });
+  document.getElementById('save-days-btn').addEventListener('click',async()=>{ try{ await Promise.all(tournDays.map(d=>saveTournDay(d))); renderTopDay(); toast('Günler kaydedildi ✓','success'); }catch(e){ toast('Hata: '+e.message,'error'); } });
+}
+
+function getPriority(k){ return taskPriorities[k.replace(/[|]/g,'__')]||''; }
+function priorityBadge(p){ if(!p) return''; const pr=PRIORITY[p]; return`<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${pr.bg};border:1px solid ${pr.border};color:${pr.color};white-space:nowrap">${pr.label}</span>`; }
+
+async function renderUsersList(){
+  try{
+    const snap=await db.collection('users').get();
+    const list=document.getElementById('users-list');
+    const users=[];
+    snap.forEach(d=>{ const data=d.data(); if(data.name) users.push(data); });
+    users.sort((a,b)=>a.name.localeCompare(b.name,'tr'));
+    if(!users.length){ list.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:24px">Henüz kayıtlı kullanıcı yok</div>'; return; }
+    list.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:12px">'+users.length+' kayıtlı kullanıcı</div>'+users.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:${u.color||'#4ade80'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${u.initials||'?'}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--text)">${u.name}</div><div style="font-size:11px;color:var(--text2);margin-top:2px">${u.dept}</div></div><div style="text-align:right;flex-shrink:0;margin-right:8px">${u.phone?`<div style="font-size:12px;color:var(--blue);font-family:DM Mono,monospace">${u.phone}</div>`:'<div style="font-size:11px;color:var(--text3)">Numara yok</div>'}<div style="font-size:10px;color:var(--text3);margin-top:2px">${u.online?'🟢 Çevrimiçi':'⚫ Çevrimdışı'}</div></div><button class="del-user-btn btn-sm" data-key="${u.name.replace(/\s/g,'_')}" data-name="${u.name}" style="flex-shrink:0;color:#f87171;border-color:#f87171;padding:4px 8px;font-size:11px">🗑️</button></div>`).join('');
+    list.querySelectorAll('.del-user-btn').forEach(btn=>{ btn.addEventListener('click',async()=>{ const name=btn.dataset.name; if(!confirm(name+' kullanıcısını silmek istiyor musunuz?')) return; try{ await db.collection('users').doc(btn.dataset.key).delete(); toast(name+' silindi','info'); renderUsersList(); }catch(e){ toast('Silinemedi: '+e.message,'error'); } }); });
+  }catch(e){ console.error(e); }
+}
+
+document.getElementById('daily-btn').addEventListener('click',()=>{ renderDailyModal(); document.getElementById('daily-modal').classList.add('open'); });
+document.getElementById('daily-close').addEventListener('click',()=>document.getElementById('daily-modal').classList.remove('open'));
+document.getElementById('day-btn').addEventListener('click',()=>{ renderDaySettings(); document.getElementById('day-modal').classList.add('open'); });
+document.getElementById('day-modal-close').addEventListener('click',()=>document.getElementById('day-modal').classList.remove('open'));
+document.getElementById('users-btn').addEventListener('click',()=>{ renderUsersList(); document.getElementById('users-modal').classList.add('open'); });
+document.getElementById('users-close').addEventListener('click',()=>document.getElementById('users-modal').classList.remove('open'));
+
+function dailyKey(checkId,itemIdx){ return'daily__'+activeDay+'__'+checkId+'__'+itemIdx; }
+function fbDailyKey(k){ return k.replace(/[|]/g,'__').replace(/__/g,'_'); }
+
+function getDailyStats(){ let done=0,total=0; DAILY_CHECKS.forEach(sec=>{ sec.items.forEach((_,i)=>{ total++; if(state[dailyKey(sec.id,i)]?.done) done++; }); }); return{done,total}; }
+function updateDailyBadge(){ const{done,total}=getDailyStats(); const badge=document.getElementById('daily-badge'); if(badge) badge.style.display=done<total?'block':'none'; }
+async function toggleDailyItem(k){ try{ if(state[k]?.done){ await db.collection('tasks').doc(fbDailyKey(k)).delete(); } else { await db.collection('tasks').doc(fbDailyKey(k)).set({key:k,done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); } }catch(e){ toast('Hata: '+e.message,'error'); } }
+
+function renderDailyModal(){
+  const{done,total}=getDailyStats(); const pct=total?Math.round(done/total*100):0;
+  const day=tournDays.find(d=>d.id===activeDay);
+  const label=document.getElementById('daily-day-label'); if(label) label.textContent=(day?.label||'')+' — '+(day?.date?new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'');
+  const progLabel=document.getElementById('daily-progress-label'); if(progLabel) progLabel.textContent=done+'/'+total+' ('+pct+'%)';
+  const fill=document.getElementById('daily-prog-fill'); if(fill) fill.style.width=pct+'%';
+  const c=document.getElementById('daily-content');
+  const myDept=currentUser?.dept;
+  const filtered=isAdmin()?DAILY_CHECKS:DAILY_CHECKS.filter(s=>s.dept===myDept);
+  if(!filtered.length){ c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px">Departmanınıza ait günlük kontrol yok</div>'; return; }
+  let h='';
+  filtered.forEach(sec=>{
+    const col=getDeptColor(sec.dept); const secDone=sec.items.filter((_,i)=>state[dailyKey(sec.id,i)]?.done).length;
+    h+=`<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${sec.ico}</span><span style="font-size:13px;font-weight:600;color:${col.text}">${sec.title}</span></div><span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span></div><div>`;
+    sec.items.forEach((item,i)=>{ const k=dailyKey(sec.id,i); const s=state[k]; const isDone=s?.done; h+=`<div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}"><div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}</div><span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${item}</span>${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${s.who} ${s.time||''}</span>`:''}</div>`; });
+    h+=`</div></div>`;
+  });
+  c.innerHTML=h;
+  c.querySelectorAll('.daily-row').forEach(el=>{ el.addEventListener('click',async()=>{ await toggleDailyItem(el.dataset.k); }); });
+}
+
+// ── FIX: Super Admin Delete Approval ──
+async function requestSectionDelete(sid){
+  const sec=SECTIONS.find(s=>s.id===sid);
+  if(!sec) return;
+  if(isSuperAdmin(currentUser.name)){
+    showSub('<h3>Alanı Sil</h3><p>"<strong>'+sec.title+'</strong>" ve tüm görevleri kalıcı olarak silinecek.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm sub-save" style="color:#f87171;border-color:#f87171">Kalıcı Sil</button></div>',
+    async()=>{ await fbDelSec(sid); SECTIONS.splice(SECTIONS.findIndex(s=>s.id===sid),1); if(currentSection===sid) currentSection='overview'; closeSub(); renderAdminPanel(); renderSidebar(); renderContent(); toast('Alan silindi','info'); });
+    return;
+  }
+  showSub(
+    '<h3>⚠️ Silme İsteği</h3><p style="margin-bottom:8px">"<strong>'+sec.title+'</strong>" alanını silmek için <span style="color:#fbbf24">Ferdi Gürboğa</span> onayı gereklidir.</p><p style="font-size:12px;color:var(--text3)">İsteğiniz Süper Admin\'e iletilecek.</p><div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">📨 Onay İsteği Gönder</button></div>',
+    async()=>{
+      try{
+        const reqId='delreq_'+Date.now();
+        await db.collection('delete_requests').doc(reqId).set({id:reqId,type:'section_delete',sectionId:sid,sectionTitle:sec.title,requestedBy:currentUser.name,requestedDept:currentUser.dept,requestedAt:new Date().toLocaleString('tr-TR'),ts:Date.now(),status:'pending'});
+        await sendAlert('🗑️ Alan Silme İsteği: '+sec.title,currentUser.name+' ('+currentUser.dept+') bu alanı silmek istiyor. Admin panelinden onaylayın.','','task');
+        closeSub();
+        toast('Silme isteği Süper Admin\'e gönderildi ✓','success');
+      }catch(e){ toast('Hata: '+e.message,'error'); }
+    }
+  );
+}
+
+async function renderDeleteRequests(){
+  try{
+    const container=document.getElementById('delete-requests-container');
+    if(!container) return;
+    if(!isSuperAdmin(currentUser?.name)){ container.innerHTML=''; return; }
+    const snap=await db.collection('delete_requests').where('status','==','pending').get();
+    if(snap.empty){ container.innerHTML=''; return; }
+    let h='<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.4);border-radius:12px;padding:14px;margin-bottom:16px"><div style="font-size:12px;color:#f87171;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚠️ Bekleyen Silme İstekleri ('+snap.size+')</div>';
+    snap.forEach(d=>{
+      const data=d.data();
+      h+='<div style="background:var(--bg2);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#f87171;margin-bottom:3px">🗑️ '+data.sectionTitle+'</div><div style="font-size:11px;color:var(--text2);margin-bottom:8px">İsteyen: <strong>'+data.requestedBy+'</strong> ('+data.requestedDept+') · '+data.requestedAt+'</div><div style="display:flex;gap:6px"><button class="btn-sm approve-del-btn" data-id="'+d.id+'" data-sid="'+data.sectionId+'" data-title="'+data.sectionTitle+'" data-by="'+data.requestedBy+'" style="color:#f87171;border-color:#f87171;flex:1;justify-content:center;font-size:11px">✓ Onayla & Sil</button><button class="btn-sm reject-del-btn" data-id="'+d.id+'" data-title="'+data.sectionTitle+'" data-by="'+data.requestedBy+'" style="flex:1;justify-content:center;font-size:11px">✕ Reddet</button></div></div>';
+    });
+    h+='</div>';
+    container.innerHTML=h;
+    container.querySelectorAll('.approve-del-btn').forEach(btn=>{
+      btn.addEventListener('click',async()=>{
+        const sid=btn.dataset.sid; const reqId=btn.dataset.id; const title=btn.dataset.title; const by=btn.dataset.by;
+        try{ await fbDelSec(sid); SECTIONS.splice(SECTIONS.findIndex(s=>s.id===sid),1); await db.collection('delete_requests').doc(reqId).update({status:'approved'}); await sendAlert('✅ Silme İsteği Onaylandı','"'+title+'" alanı silindi. İsteyen: '+by,'','task'); if(currentSection===sid) currentSection='overview'; toast(title+' silindi ✓','success'); renderDeleteRequests(); renderAdminPanel(); renderSidebar(); renderContent(); }catch(e){ toast('Hata: '+e.message,'error'); }
+      });
+    });
+    container.querySelectorAll('.reject-del-btn').forEach(btn=>{
+      btn.addEventListener('click',async()=>{
+        try{ await db.collection('delete_requests').doc(btn.dataset.id).update({status:'rejected'}); await sendAlert('❌ Silme İsteği Reddedildi','"'+btn.dataset.title+'" silme isteği reddedildi. İsteyen: '+btn.dataset.by,'','task'); toast('İstek reddedildi','info'); renderDeleteRequests(); }catch(e){ toast('Hata: '+e.message,'error'); }
+      });
+    });
+  }catch(e){ console.error('renderDeleteRequests:',e); }
+}
+
+async function resetToDefaults(){
+  if(!confirm('Tüm varsayılan alanlar Firebase\'e yüklenecek. Emin misiniz?')) return;
+  try{ for(const sec of DEFAULT_SECTIONS){ await fbSaveSec(sec); } toast('Tüm varsayılan alanlar yüklendi ✓','success'); renderAdminPanel(); renderSidebar(); renderContent(); }catch(e){ toast('Hata: '+e.message,'error'); }
+}
+
+// ── Auto Session Restore ──
+async function tryRestoreSession(){
+  const saved=localStorage.getItem('dpwt_session');
+  if(!saved) return;
+  let u; try{ u=JSON.parse(saved); }catch(e){ localStorage.removeItem('dpwt_session'); return; }
+  if(!u||!u.name||!u.dept){ localStorage.removeItem('dpwt_session'); return; }
+  currentUser=u;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  document.getElementById('top-username').textContent=currentUser.name;
+  const av=document.getElementById('top-avatar');
+  av.textContent=currentUser.initials; av.style.background=currentUser.color; av.style.color='#fff';
+  if(currentUser.dept==='Admin'){ document.getElementById('admin-btn').style.display='inline-flex'; document.getElementById('users-btn').style.display='inline-flex'; document.getElementById('day-btn').style.display='inline-flex'; }
+  try{ await fbSetUser(currentUser); }catch(e){ console.warn('fbSetUser failed'); }
+  try{ await loadApprovedAdmins(); }catch(e){}
+  subscribeAll();
+  notifications=[];
+  startHeartbeat();
+  subscribeNotifs();
+  subscribeAlerts();
+  try{ await checkPendingAlerts(); }catch(e){}
+  subscribeApprovals();
+  if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
+  // ── FIX: Load tournament days and render day bar ──
+  await loadTournDays();
+  renderTopDay();
+  subscribePriorities();
+  updateDailyBadge();
+  let isRefreshing=false;
+  window.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='r') isRefreshing=true; });
+  window.addEventListener('beforeunload',()=>{ if(!isRefreshing){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } });
+  window.addEventListener('pagehide',e=>{ if(!e.persisted){ stopHeartbeat(); if(currentUser) fbDelUser(currentUser.name); } });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
+}
+
+// Run on page load
+tryRestoreSession();
+
+function showSub(html,onSave,onDel){
+  const body=document.getElementById('sub-modal-body');
+  body.innerHTML=html;
+  document.getElementById('sub-modal').classList.add('open');
+  setTimeout(()=>{
+    body.querySelector('.sub-cancel')?.addEventListener('click',closeSub);
+    if(onSave){ const btn=body.querySelector('.sub-save'); if(btn) btn.addEventListener('click',onSave); }
+    if(onDel){ const btn=body.querySelector('.sub-del'); if(btn) btn.addEventListener('click',onDel); }
+  },50);
+}
+function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
+</script>
+</body>
+</html>

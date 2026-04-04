@@ -940,7 +940,16 @@ async function tryRestoreSession(){
 // Run on page load
 tryRestoreSession();
 
-function showSub(html,onSave,onDel){ const body=document.getElementById('sub-modal-body'); body.innerHTML=html; document.getElementById('sub-modal').classList.add('open'); body.querySelector('.sub-cancel')?.addEventListener('click',closeSub); if(onSave) body.querySelector('.sub-save')?.addEventListener('click',onSave); if(onDel) body.querySelector('.sub-del')?.addEventListener('click',onDel); }
+function showSub(html,onSave,onDel){
+  const body=document.getElementById('sub-modal-body');
+  body.innerHTML=html;
+  document.getElementById('sub-modal').classList.add('open');
+  setTimeout(()=>{
+    body.querySelector('.sub-cancel')?.addEventListener('click',closeSub);
+    if(onSave){ const btn=body.querySelector('.sub-save'); if(btn) btn.addEventListener('click',onSave); }
+    if(onDel){ const btn=body.querySelector('.sub-del'); if(btn) btn.addEventListener('click',onDel); }
+  },50);
+}
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
 </script>
 </body>

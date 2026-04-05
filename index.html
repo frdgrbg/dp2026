@@ -949,10 +949,13 @@ function showSub(html,onSave,onDel){
 }
 
 document.addEventListener('click',function(e){
-  if(e.target.classList.contains('sub-cancel')){ closeSub(); }
-  if(e.target.classList.contains('sub-save')&&window._subSaveCallback){ window._subSaveCallback(); }
-  if(e.target.classList.contains('sub-del')&&window._subDelCallback){ window._subDelCallback(); }
-});
+  const t=e.target.closest ? (e.target.closest('.sub-save,.sub-cancel,.sub-del')||e.target) : e.target;
+  if(!t||!t.classList) return;
+  if(t.classList.contains('sub-cancel')){ e.preventDefault(); closeSub(); return; }
+  if(t.classList.contains('sub-save')&&window._subSaveCallback){ e.preventDefault(); window._subSaveCallback(); return; }
+  if(t.classList.contains('sub-del')&&window._subDelCallback){ e.preventDefault(); window._subDelCallback(); return; }
+},true);
+
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
 </script>
 </body>

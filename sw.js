@@ -1,4 +1,4 @@
-const CACHE='dpwt-v7';
+const CACHE='dpwt-v8';
 const OFFLINE_URL='/';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll([OFFLINE_URL])));

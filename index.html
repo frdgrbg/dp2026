@@ -948,7 +948,7 @@ function showSub(html,onSave,onDel){
     body.querySelector('.sub-cancel')?.addEventListener('click',closeSub);
     if(onSave){ const btn=body.querySelector('.sub-save'); if(btn) btn.addEventListener('click',onSave); }
     if(onDel){ const btn=body.querySelector('.sub-del'); if(btn) btn.addEventListener('click',onDel); }
-  },50);
+  },200);
 }
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
 </script>

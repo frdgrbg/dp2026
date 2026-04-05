@@ -944,12 +944,15 @@ function showSub(html,onSave,onDel){
   const body=document.getElementById('sub-modal-body');
   body.innerHTML=html;
   document.getElementById('sub-modal').classList.add('open');
-  setTimeout(()=>{
-    body.querySelector('.sub-cancel')?.addEventListener('click',closeSub);
-    if(onSave){ const btn=body.querySelector('.sub-save'); if(btn) btn.addEventListener('click',onSave); }
-    if(onDel){ const btn=body.querySelector('.sub-del'); if(btn) btn.addEventListener('click',onDel); }
-  },200);
+  window._subSaveCallback=onSave||null;
+  window._subDelCallback=onDel||null;
 }
+
+document.addEventListener('click',function(e){
+  if(e.target.classList.contains('sub-cancel')){ closeSub(); }
+  if(e.target.classList.contains('sub-save')&&window._subSaveCallback){ window._subSaveCallback(); }
+  if(e.target.classList.contains('sub-del')&&window._subDelCallback){ window._subDelCallback(); }
+});
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }
 </script>
 </body>

@@ -381,7 +381,7 @@ const fbSaveSec=sec=>db.collection('sections').doc(sec.id).set({...sec,tasks:JSO
 const fbDelSec=async id=>{ await db.collection('sections').doc(id).delete(); const snap=await db.collection('tasks').get(); await Promise.all(snap.docs.filter(d=>d.data().key?.includes(id)).map(d=>d.ref.delete())); };
 
 function subscribeAll(){
-  unsubSections=db.collection('sections').onSnapshot(snap=>{ if(!snap.empty){ const arr=[]; snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} }); if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); if(tournDays.length>0) renderTopDay(); } } });
+  unsubSections=db.collection('sections').onSnapshot(snap=>{ if(!snap.empty){ const arr=[]; snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} }); if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); renderTopDay(); } } });
   unsubTasks=db.collection('tasks').onSnapshot(snap=>{ state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent(); updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); });
   unsubUsers=db.collection('users').onSnapshot(snap=>{ onlineUsers={}; snap.forEach(d=>{ const x=d.data(); onlineUsers[x.name]=x; }); renderOnlineBar(); });
 }
@@ -953,9 +953,16 @@ function showSub(html,onSave,onDel){
   const cancelBtn=body.querySelector('.sub-cancel');
   const saveBtn=body.querySelector('.sub-save');
   const delBtn=body.querySelector('.sub-del');
-  if(cancelBtn) cancelBtn.onclick=function(e){ e.preventDefault(); closeSub(); };
-  if(saveBtn&&onSave) saveBtn.onclick=function(e){ e.preventDefault(); onSave(); };
-  if(delBtn&&onDel) delBtn.onclick=function(e){ e.preventDefault(); onDel(); };
+  function bindBtn(btn, cb){
+    if(!btn||!cb) return;
+    btn.onclick=null;
+    btn.ontouchend=null;
+    btn.onclick=function(e){ e.preventDefault(); e.stopPropagation(); cb(); };
+    btn.ontouchend=function(e){ e.preventDefault(); e.stopPropagation(); cb(); };
+  }
+  bindBtn(cancelBtn, closeSub);
+  if(onSave) bindBtn(saveBtn, onSave);
+  if(onDel) bindBtn(delBtn, onDel);
 }
 
 document.addEventListener('click',function(e){

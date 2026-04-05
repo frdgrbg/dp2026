@@ -764,6 +764,8 @@ function renderAdminPanel(){
 function renderTopDay(){
   const bar=document.getElementById('day-bar');
   if(!bar) return;
+  // Save to localStorage as backup
+  if(tournDays.length>0) localStorage.setItem('dpwt_tourn_days', JSON.stringify(tournDays));
   const today=new Date().toISOString().slice(0,10);
   let h='';
   tournDays.forEach(d=>{
@@ -777,7 +779,10 @@ function renderTopDay(){
 }
 
 async function loadTournDays(){
-  try{ const snap=await db.collection('tourn_days').get(); if(!snap.empty){ tournDays=snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date)); } }catch(e){}
+  // First load from localStorage as instant fallback
+  try{ const cached=localStorage.getItem('dpwt_tourn_days'); if(cached){ const arr=JSON.parse(cached); if(arr&&arr.length>0){ tournDays=arr; renderTopDay(); } } }catch(e){}
+  // Then load from Firebase
+  try{ const snap=await db.collection('tourn_days').get(); if(!snap.empty){ tournDays=snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date)); renderTopDay(); } }catch(e){}
 }
 async function saveTournDay(day){ await db.collection('tourn_days').doc(day.id).set(day); }
 
@@ -944,8 +949,13 @@ function showSub(html,onSave,onDel){
   const body=document.getElementById('sub-modal-body');
   body.innerHTML=html;
   document.getElementById('sub-modal').classList.add('open');
-  window._subSaveCallback=onSave||null;
-  window._subDelCallback=onDel||null;
+  // Use direct onclick for maximum mobile compatibility
+  const cancelBtn=body.querySelector('.sub-cancel');
+  const saveBtn=body.querySelector('.sub-save');
+  const delBtn=body.querySelector('.sub-del');
+  if(cancelBtn) cancelBtn.onclick=function(e){ e.preventDefault(); closeSub(); };
+  if(saveBtn&&onSave) saveBtn.onclick=function(e){ e.preventDefault(); onSave(); };
+  if(delBtn&&onDel) delBtn.onclick=function(e){ e.preventDefault(); onDel(); };
 }
 
 document.addEventListener('click',function(e){

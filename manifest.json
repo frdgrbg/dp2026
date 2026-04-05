@@ -4,8 +4,9 @@
   "description": "DP World Tour 2026",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#0d0f0e",
+  "theme_color": "#0d0f0e",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",

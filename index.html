@@ -324,7 +324,7 @@ function getSectionTime(sid){
   return sectionTimes[timeKey(sid)] || sectionTimes[sid] || {};
 }
 
-const DAILY_CHECKS = [
+const DEFAULT_DAILY_CHECKS = [
   {id:'ofis',ico:'🏢',title:'Turnuva Ofisleri',dept:'Teknik',items:['Tüm bilgisayar ve ekranlar açık ve çalışır durumda','İnternet bağlantısı aktif','Klima çalışıyor, sıcaklık ayarlı','Yazıcı hazır ve mürekkep/kağıt yeterli','Çöpler boşaltıldı','Kahve makinesi hazır, su stoku yeterli']},
   {id:'fizyoterapi_daily',ico:'💆',title:'Fizyoterapi',dept:'HK',items:['Havlu stoku kontrol edildi ve yenilendi','Kullanılmış havlular toplandı','Su ve bisküvi stoku yeterli','Klima sıcaklığı kontrol edildi','Terlik stoku yeterli','Masa ve tedavi alanı dezenfekte edildi']},
   {id:'doktor_daily',ico:'🏥',title:'Doktor Odası',dept:'Ambulans',items:['AED pil seviyesi kontrol edildi','İlaç dolabı kontrol edildi','Son kullanma tarihleri kontrol edildi','Dezenfektan stoku yeterli','Steril malzeme stoku kontrol edildi','Acil aydınlatma çalışıyor','Ambulans hazır ve yakıt dolu']},
@@ -337,6 +337,33 @@ const DAILY_CHECKS = [
   {id:'tvcompound_daily',ico:'📺',title:'TV Compound',dept:'Teknik',items:['İnternet hız testi yapıldı (min 50Mbps)','Tüm internet podları aktif','Yayın bağlantısı test edildi','Çevre temizliği yapıldı','Ekipman soğutması çalışıyor']},
   {id:'koy_daily',ico:'🏘️',title:'Turnuva Köyü',dept:'Muhasebe & Cost',items:['Kasa açılışı yapıldı ve sayıldı','Sabah genel alan temizliği yapıldı','2. saat alan temizliği yapıldı','4. saat alan temizliği yapıldı','Giriş kontrolü aktif','Akreditasyon sorun yok','Fast food malzeme stoku kontrol edildi','Proshop açık ve hazır','Kasa kapanış sayımı yapıldı']},
 ];
+
+let DAILY_CHECKS = JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
+
+const fbSaveDailyCheck=sec=>db.collection('daily_checks').doc(sec.id).set({...sec,items:JSON.stringify(sec.items)});
+const fbDelDailyCheck=id=>db.collection('daily_checks').doc(id).delete();
+
+async function loadDailyChecks(){
+  try{
+    const snap=await db.collection('daily_checks').get();
+    if(!snap.empty){
+      const arr=[];
+      snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,items:typeof x.items==='string'?JSON.parse(x.items):x.items}); }catch(e){} });
+      if(arr.length){ DAILY_CHECKS=arr; }
+    }
+  }catch(e){ console.warn('loadDailyChecks failed, using defaults'); }
+}
+
+let unsubDailyChecks=null;
+function subscribeDailyChecks(){
+  unsubDailyChecks=db.collection('daily_checks').onSnapshot(snap=>{
+    if(!snap.empty){
+      const arr=[];
+      snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,items:typeof x.items==='string'?JSON.parse(x.items):x.items}); }catch(e){} });
+      if(arr.length){ DAILY_CHECKS=arr; updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); }
+    }
+  });
+}
 
 let activeDailyDay = localStorage.getItem('dpwt_daily_day') || 'day1';
 
@@ -589,6 +616,8 @@ document.getElementById('login-btn').addEventListener('click',async()=>{
     await loadTournDays();
     renderTopDay();
     await loadSectionTimes();
+    await loadDailyChecks();
+    subscribeDailyChecks();
     subscribePriorities();
     updateDailyBadge();
     startHeartbeat();
@@ -953,14 +982,124 @@ function renderDailyModal(){
   const filtered=isAdmin()?DAILY_CHECKS:DAILY_CHECKS.filter(s=>s.dept===myDept);
   if(!filtered.length){ c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px">Departmanınıza ait günlük kontrol yok</div>'; return; }
   let h='';
+  if(isAdmin()){
+    h+=`<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn-sm green" id="daily-add-sec-btn" style="flex:1;justify-content:center;font-size:12px">+ Yeni Alan</button><button class="btn-sm" id="daily-reset-btn" style="font-size:12px;color:#f87171;border-color:#f87171">🔄 Varsayılana Dön</button></div>`;
+  }
   filtered.forEach(sec=>{
     const col=getDeptColor(sec.dept); const secDone=sec.items.filter((_,i)=>state[dailyKey(sec.id,i)]?.done).length;
-    h+=`<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${sec.ico}</span><span style="font-size:13px;font-weight:600;color:${col.text}">${sec.title}</span></div><span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span></div><div>`;
-    sec.items.forEach((item,i)=>{ const k=dailyKey(sec.id,i); const s=state[k]; const isDone=s?.done; h+=`<div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}"><div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}</div><span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(item)}</span>${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${escapeHtml(s.who)} ${escapeHtml(s.time)||''}</span>`:''}</div>`; });
+    h+=`<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${sec.ico}</span><span style="font-size:13px;font-weight:600;color:${col.text}">${escapeHtml(sec.title)}</span></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span>${isAdmin()?`<button class="daily-edit-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">✏️</button><button class="daily-add-item-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">+</button><button class="daily-del-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:#f87171;border-color:#f87171">✕</button>`:''}</div></div><div>`;
+    sec.items.forEach((item,i)=>{ const k=dailyKey(sec.id,i); const s=state[k]; const isDone=s?.done; h+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}"><div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}</div><span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(item)}</span>${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${escapeHtml(s.who)} ${escapeHtml(s.time)||''}</span>`:''}</div>${isAdmin()?`<button class="daily-edit-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);flex-shrink:0">✏️</button><button class="daily-del-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:#f87171;flex-shrink:0">✕</button>`:''}</div>`; });
     h+=`</div></div>`;
   });
   c.innerHTML=h;
   c.querySelectorAll('.daily-row').forEach(el=>{ el.addEventListener('click',async()=>{ await toggleDailyItem(el.dataset.k); }); });
+
+  // ── Admin: Günlük Kontrol Düzenleme ──
+  if(isAdmin()){
+    const addSecBtn=document.getElementById('daily-add-sec-btn');
+    if(addSecBtn) addSecBtn.addEventListener('click',()=>{
+      showSub('<h3>Yeni Günlük Alan</h3>'+
+        '<div class="field"><label>ALAN ADI</label><input id="f-dc-title" placeholder="örn: VIP Çadırı"/></div>'+
+        '<div class="field"><label>EMOJİ</label><input id="f-dc-ico" placeholder="🎪" maxlength="2" style="width:80px;font-size:20px"/></div>'+
+        '<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" placeholder="örn: F&B"/></div>'+
+        '<div class="field"><label>KONTROL MADDELERİ (her satıra bir tane)</label><textarea id="f-dc-items" rows="5" placeholder="Masa kurulumu kontrol edildi&#10;İçecek stoku yeterli"></textarea></div>'+
+        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      async()=>{
+        const title=document.getElementById('f-dc-title').value.trim();
+        const ico=document.getElementById('f-dc-ico').value.trim()||'📋';
+        const dept=document.getElementById('f-dc-dept').value.trim();
+        const items=document.getElementById('f-dc-items').value.split('\n').map(t=>t.trim()).filter(Boolean);
+        if(!title||!dept){ toast('Alan adı ve departman zorunlu.','error'); return; }
+        if(!items.length){ toast('En az bir kontrol maddesi girin.','error'); return; }
+        const newSec={id:slugify(title)+'_daily',ico,title,dept,items};
+        DAILY_CHECKS.push(newSec);
+        await fbSaveDailyCheck(newSec);
+        closeSub(); renderDailyModal(); toast(title+' eklendi ✓','success');
+      });
+    });
+
+    const resetBtn=document.getElementById('daily-reset-btn');
+    if(resetBtn) resetBtn.addEventListener('click',async()=>{
+      if(!confirm('Günlük kontrol listesi varsayılana sıfırlanacak. Emin misiniz?')) return;
+      try{
+        const snap=await db.collection('daily_checks').get();
+        await Promise.all(snap.docs.map(d=>d.ref.delete()));
+        DAILY_CHECKS=JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
+        for(const sec of DAILY_CHECKS){ await fbSaveDailyCheck(sec); }
+        renderDailyModal(); toast('Varsayılana döndürüldü ✓','success');
+      }catch(e){ toast('Hata: '+e.message,'error'); }
+    });
+
+    c.querySelectorAll('.daily-edit-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      showSub('<h3>Alanı Düzenle</h3>'+
+        '<div class="field"><label>ALAN ADI</label><input id="f-dc-title" value="'+escapeHtml(sec.title)+'"/></div>'+
+        '<div class="field"><label>EMOJİ</label><input id="f-dc-ico" value="'+sec.ico+'" maxlength="2" style="width:80px;font-size:20px"/></div>'+
+        '<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" value="'+escapeHtml(sec.dept)+'"/></div>'+
+        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      async()=>{
+        sec.title=document.getElementById('f-dc-title').value.trim()||sec.title;
+        sec.ico=document.getElementById('f-dc-ico').value.trim()||sec.ico;
+        sec.dept=document.getElementById('f-dc-dept').value.trim()||sec.dept;
+        await fbSaveDailyCheck(sec);
+        closeSub(); renderDailyModal(); toast('Güncellendi ✓','success');
+      });
+    }));
+
+    c.querySelectorAll('.daily-add-item-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      showSub('<h3>Kontrol Maddesi Ekle</h3><p>'+escapeHtml(sec.title)+'</p>'+
+        '<div class="field"><label>MADDELER (her satıra bir tane)</label><textarea id="f-dc-items" rows="4" placeholder="Yeni kontrol maddesi"></textarea></div>'+
+        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Ekle →</button></div>',
+      async()=>{
+        const items=document.getElementById('f-dc-items').value.split('\n').map(t=>t.trim()).filter(Boolean);
+        if(!items.length){ toast('En az bir madde girin.','error'); return; }
+        sec.items.push(...items);
+        await fbSaveDailyCheck(sec);
+        closeSub(); renderDailyModal(); toast(items.length+' madde eklendi ✓','success');
+      });
+    }));
+
+    c.querySelectorAll('.daily-del-sec-btn').forEach(btn=>btn.addEventListener('click',async()=>{
+      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      if(!confirm('"'+sec.title+'" alanını silmek istediğinize emin misiniz?')) return;
+      try{
+        await fbDelDailyCheck(sec.id);
+        DAILY_CHECKS.splice(DAILY_CHECKS.findIndex(s=>s.id===sec.id),1);
+        renderDailyModal(); toast(sec.title+' silindi','info');
+      }catch(e){ toast('Hata: '+e.message,'error'); }
+    }));
+
+    c.querySelectorAll('.daily-edit-item-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.sid); if(!sec) return;
+      const idx=Number(btn.dataset.idx); const cur=sec.items[idx]||'';
+      showSub('<h3>Maddeyi Düzenle</h3>'+
+        '<div class="field"><label>KONTROL MADDESİ</label><input id="f-dc-item" value="'+escapeHtml(cur)+'"/></div>'+
+        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      async()=>{
+        const val=document.getElementById('f-dc-item').value.trim();
+        if(!val){ toast('Boş olamaz.','error'); return; }
+        sec.items[idx]=val;
+        await fbSaveDailyCheck(sec);
+        closeSub(); renderDailyModal(); toast('Güncellendi ✓','success');
+      });
+    }));
+
+    c.querySelectorAll('.daily-del-item-btn').forEach(btn=>btn.addEventListener('click',async()=>{
+      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.sid); if(!sec) return;
+      const idx=Number(btn.dataset.idx);
+      const item=sec.items[idx];
+      if(!confirm('"'+item+'" silinecek. Emin misiniz?')) return;
+      sec.items.splice(idx,1);
+      if(!sec.items.length){
+        await fbDelDailyCheck(sec.id);
+        DAILY_CHECKS.splice(DAILY_CHECKS.findIndex(s=>s.id===sec.id),1);
+      } else {
+        await fbSaveDailyCheck(sec);
+      }
+      renderDailyModal(); toast('Silindi','info');
+    }));
+  }
 }
 
 // ── Super Admin Delete Approval ──
@@ -1045,6 +1184,8 @@ async function tryRestoreSession(){
   await loadTournDays();
   renderTopDay();
   await loadSectionTimes();
+  await loadDailyChecks();
+  subscribeDailyChecks();
   subscribePriorities();
   updateDailyBadge();
   let isRefreshing=false;

@@ -381,7 +381,7 @@ const fbSaveSec=sec=>db.collection('sections').doc(sec.id).set({...sec,tasks:JSO
 const fbDelSec=async id=>{ await db.collection('sections').doc(id).delete(); const snap=await db.collection('tasks').get(); await Promise.all(snap.docs.filter(d=>d.data().key?.includes(id)).map(d=>d.ref.delete())); };
 
 function subscribeAll(){
-  unsubSections=db.collection('sections').onSnapshot(snap=>{ if(!snap.empty){ const arr=[]; snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} }); if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); } } });
+  unsubSections=db.collection('sections').onSnapshot(snap=>{ if(!snap.empty){ const arr=[]; snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,tasks:typeof x.tasks==='string'?JSON.parse(x.tasks):x.tasks}); }catch(e){} }); if(arr.length){ arr.sort((a,b)=>(a.order||0)-(b.order||0)); SECTIONS.length=0; arr.forEach(s=>SECTIONS.push(s)); renderSidebar(); renderContent(); if(tournDays.length>0) renderTopDay(); } } });
   unsubTasks=db.collection('tasks').onSnapshot(snap=>{ state={}; snap.forEach(d=>{ const x=d.data(); state[x.key]=x; }); renderSidebar(); renderContent(); updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); });
   unsubUsers=db.collection('users').onSnapshot(snap=>{ onlineUsers={}; snap.forEach(d=>{ const x=d.data(); onlineUsers[x.name]=x; }); renderOnlineBar(); });
 }
@@ -949,11 +949,17 @@ function showSub(html,onSave,onDel){
 }
 
 document.addEventListener('click',function(e){
-  const t=e.target.closest ? (e.target.closest('.sub-save,.sub-cancel,.sub-del')||e.target) : e.target;
-  if(!t||!t.classList) return;
-  if(t.classList.contains('sub-cancel')){ e.preventDefault(); closeSub(); return; }
-  if(t.classList.contains('sub-save')&&window._subSaveCallback){ e.preventDefault(); window._subSaveCallback(); return; }
-  if(t.classList.contains('sub-del')&&window._subDelCallback){ e.preventDefault(); window._subDelCallback(); return; }
+  let t = e.target;
+  // Walk up the DOM tree to find the button
+  for(let i=0; i<5; i++){
+    if(!t) break;
+    if(t.classList){
+      if(t.classList.contains('sub-cancel')){ e.preventDefault(); e.stopPropagation(); closeSub(); return; }
+      if(t.classList.contains('sub-save')&&window._subSaveCallback){ e.preventDefault(); e.stopPropagation(); window._subSaveCallback(); return; }
+      if(t.classList.contains('sub-del')&&window._subDelCallback){ e.preventDefault(); e.stopPropagation(); window._subDelCallback(); return; }
+    }
+    t = t.parentElement;
+  }
 },true);
 
 function closeSub(){ document.getElementById('sub-modal').classList.remove('open'); }

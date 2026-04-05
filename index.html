@@ -517,7 +517,7 @@ async function renderApprovalList(){
 
 async function updateApprovalBadge(){ const btn=document.getElementById('approval-btn'); if(btn&&isSuperAdmin(currentUser?.name)) btn.style.display='inline-flex'; }
 
-// ── FIX: Dept change - Admin şifre alanı ──
+// ── Dept change - Admin şifre alanı ──
 function onDeptChange(){
   const val=document.getElementById('login-dept').value;
   const isAdm=val==='Admin';
@@ -702,21 +702,15 @@ function openAdmin(){ renderAdminPanel(); document.getElementById('admin-modal')
 function renderAdminPanel(){
   const c=document.getElementById('admin-content');
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:13px;color:var(--text2)">${SECTIONS.length} alan · ${SECTIONS.reduce((a,s)=>a+s.tasks.reduce((b,d)=>b+d.items.length,0),0)} görev</span><button class="btn-sm green new-sec-btn">+ Yeni Alan</button></div>`;
-  
-  // Süper Admin için bekleyen silme istekleri
   h += `<div id="delete-requests-container" style="margin-bottom:12px"></div>`;
-  
   SECTIONS.forEach((s,si)=>{
     const total=s.tasks.reduce((a,d)=>a+d.items.length,0);
     h+=`<div class="admin-sec-card"><div class="admin-sec-header"><span style="font-size:16px">${s.ico}</span><span style="font-size:13px;font-weight:500;flex:1">${s.title}</span><span style="font-size:11px;color:var(--text3);margin-right:6px">${total} görev</span>`;
-    
-    // Silme butonu - Süper Admin için direkt sil, diğerleri için istek gönder
     if(isSuperAdmin(currentUser?.name)){
       h+=`<button class="btn-sm del-sec-btn" data-sid="${s.id}" style="font-size:11px;padding:3px 8px;color:#f87171;border-color:#f87171">🗑️ Sil</button>`;
     } else {
       h+=`<button class="btn-sm del-sec-btn" data-sid="${s.id}" style="font-size:11px;padding:3px 8px;color:#fbbf24;border-color:#fbbf24">📨 Sil İste</button>`;
     }
-    
     h+=`</div><div style="padding:8px 12px">`;
     s.tasks.forEach((dept,di)=>{
       h+=`<div style="margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${dept.d}</span><div style="display:flex;gap:4px"><button class="btn-sm add-task-btn" data-sid="${s.id}" data-di="${di}" style="font-size:10px;padding:2px 7px">+ Görev</button><button class="btn-sm del-dept-btn" data-sid="${s.id}" data-di="${di}" style="font-size:10px;padding:2px 7px;color:#f87171;border-color:#f87171">Sil</button></div></div>`;
@@ -725,15 +719,10 @@ function renderAdminPanel(){
     });
     h+=`<button class="btn-sm add-dept-btn" data-sid="${s.id}" style="font-size:11px;margin-top:4px;width:100%">+ Departman Ekle</button></div></div>`;
   });
-  
-  // Varsayılan alanları yükle (sadece Süper Admin)
   if(isSuperAdmin(currentUser?.name)){
     h+=`<button class="btn-sm" onclick="resetToDefaults()" style="color:#f87171;border-color:#f87171;margin-top:8px;width:100%">🔄 Varsayılan Alanları Yükle</button>`;
   }
-  
   c.innerHTML=h;
-  
-  // Süper Admin için bekleyen silme isteklerini göster
   if(isSuperAdmin(currentUser?.name)) renderDeleteRequests();
 
   c.querySelector('.new-sec-btn').addEventListener('click',()=>{
@@ -756,7 +745,6 @@ function renderAdminPanel(){
     });
   });
 
-  // ── FIX: Del sec btn - Süper Admin onayı ──
   c.querySelectorAll('.del-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
     requestSectionDelete(btn.dataset.sid);
   }));
@@ -796,7 +784,6 @@ function renderAdminPanel(){
 function renderTopDay(){
   const bar=document.getElementById('day-bar');
   if(!bar) return;
-  // Save to localStorage as backup
   if(tournDays.length>0) localStorage.setItem('dpwt_tourn_days', JSON.stringify(tournDays));
   const today=new Date().toISOString().slice(0,10);
   let h='';
@@ -811,25 +798,71 @@ function renderTopDay(){
 }
 
 async function loadTournDays(){
-  // First load from localStorage as instant fallback
   try{ const cached=localStorage.getItem('dpwt_tourn_days'); if(cached){ const arr=JSON.parse(cached); if(arr&&arr.length>0){ tournDays=arr; renderTopDay(); } } }catch(e){}
-  // Then load from Firebase
   try{ const snap=await db.collection('tourn_days').get(); if(!snap.empty){ tournDays=snap.docs.map(d=>d.data()).sort((a,b)=>a.date.localeCompare(b.date)); renderTopDay(); } }catch(e){}
 }
 async function saveTournDay(day){ await db.collection('tourn_days').doc(day.id).set(day); }
 
+// ── FIX: renderDaySettings — Firebase'den de sil ──
 function renderDaySettings(){
   const c=document.getElementById('day-settings-content');
   let h=`<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Turnuva Günleri</div>`;
   tournDays.forEach((d,i)=>{
-    h+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:var(--text);flex:1">${d.label}</span><button class="btn-sm del-day-btn" data-idx="${i}" style="font-size:10px;padding:2px 8px;color:#f87171;border-color:#f87171">Sil</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">LABEL</div><input class="day-field" data-idx="${i}" data-field="label" value="${d.label}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">TARİH</div><input type="date" class="day-field" data-idx="${i}" data-field="date" value="${d.date}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div style="grid-column:span 2"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">AÇIKLAMA</div><input class="day-field" data-idx="${i}" data-field="desc" value="${d.desc}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div></div></div>`;
+    h+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:var(--text);flex:1">${d.label}</span><button class="btn-sm del-day-btn" data-idx="${i}" data-id="${d.id}" style="font-size:10px;padding:2px 8px;color:#f87171;border-color:#f87171">Sil</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">LABEL</div><input class="day-field" data-idx="${i}" data-field="label" value="${d.label}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">TARİH</div><input type="date" class="day-field" data-idx="${i}" data-field="date" value="${d.date}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div><div style="grid-column:span 2"><div style="font-size:10px;color:var(--text3);margin-bottom:3px">AÇIKLAMA</div><input class="day-field" data-idx="${i}" data-field="desc" value="${d.desc}" style="width:100%;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;outline:none"/></div></div></div>`;
   });
   h+=`</div><div style="display:flex;gap:8px"><button class="btn-sm green" id="add-day-btn" style="flex:1;justify-content:center">+ Gün Ekle</button><button class="btn-sm green" id="save-days-btn" style="flex:1;justify-content:center">💾 Kaydet</button></div>`;
   c.innerHTML=h;
+
   c.querySelectorAll('.day-field').forEach(inp=>inp.addEventListener('change',()=>{ tournDays[inp.dataset.idx][inp.dataset.field]=inp.value; }));
-  c.querySelectorAll('.del-day-btn').forEach(btn=>btn.addEventListener('click',()=>{ tournDays.splice(Number(btn.dataset.idx),1); renderDaySettings(); }));
-  document.getElementById('add-day-btn').addEventListener('click',()=>{ const n=tournDays.length+1; tournDays.push({id:'day'+n,label:n+'. Gün',date:'2026-05-0'+n,desc:'Açıklama'}); renderDaySettings(); });
-  document.getElementById('save-days-btn').addEventListener('click',async()=>{ try{ await Promise.all(tournDays.map(d=>saveTournDay(d))); renderTopDay(); toast('Günler kaydedildi ✓','success'); }catch(e){ toast('Hata: '+e.message,'error'); } });
+
+  // ── FIX: Sil butonuna Firebase silme eklendi ──
+  c.querySelectorAll('.del-day-btn').forEach(btn=>btn.addEventListener('click',async()=>{
+    const idx=Number(btn.dataset.idx);
+    const dayId=btn.dataset.id;
+    tournDays.splice(idx,1);
+    // LocalStorage'ı güncelle
+    localStorage.setItem('dpwt_tourn_days', JSON.stringify(tournDays));
+    // Firebase'den de sil
+    try{
+      await db.collection('tourn_days').doc(dayId).delete();
+      toast('Gün silindi ✓','info');
+    }catch(e){
+      toast('Firebase silme hatası: '+e.message,'error');
+    }
+    renderDaySettings();
+    renderTopDay();
+  }));
+
+  document.getElementById('add-day-btn').addEventListener('click',()=>{
+    const n=tournDays.length+1;
+    tournDays.push({id:'day'+Date.now(),label:n+'. Gün',date:'2026-05-0'+n,desc:'Açıklama'});
+    renderDaySettings();
+  });
+
+  // ── FIX: Kaydet butonuna da silinenleri Firebase'den kaldırma eklendi ──
+  document.getElementById('save-days-btn').addEventListener('click',async()=>{
+    try{
+      // Mevcut Firebase kayıtlarını çek
+      const snap=await db.collection('tourn_days').get();
+      const existingIds=snap.docs.map(d=>d.id);
+      const currentIds=tournDays.map(d=>d.id);
+      // Firebase'de olup local'de olmayanları sil
+      const toDelete=existingIds.filter(id=>!currentIds.includes(id));
+      await Promise.all(toDelete.map(id=>db.collection('tourn_days').doc(id).delete()));
+      // Kalanları kaydet/güncelle
+      await Promise.all(tournDays.map(d=>saveTournDay(d)));
+      // LocalStorage'ı güncelle
+      localStorage.setItem('dpwt_tourn_days', JSON.stringify(tournDays));
+      renderTopDay();
+      toast('Günler kaydedildi ✓','success');
+      // Toast göster
+      const saved=document.createElement('div');
+      saved.style.cssText='position:fixed;bottom:80px;right:50%;transform:translateX(50%);z-index:9999;background:#1e221e;border:1px solid var(--green);color:#4ade80;padding:10px 20px;border-radius:10px;font-size:13px;font-family:DM Sans,sans-serif;animation:fadeUp .3s ease';
+      saved.textContent='Günler kaydedildi ✓';
+      document.body.appendChild(saved);
+      setTimeout(()=>saved.remove(),2500);
+    }catch(e){ toast('Hata: '+e.message,'error'); }
+  });
 }
 
 function getPriority(k){ return taskPriorities[k.replace(/[|]/g,'__')]||''; }
@@ -883,7 +916,7 @@ function renderDailyModal(){
   c.querySelectorAll('.daily-row').forEach(el=>{ el.addEventListener('click',async()=>{ await toggleDailyItem(el.dataset.k); }); });
 }
 
-// ── FIX: Super Admin Delete Approval ──
+// ── Super Admin Delete Approval ──
 async function requestSectionDelete(sid){
   const sec=SECTIONS.find(s=>s.id===sid);
   if(!sec) return;
@@ -962,7 +995,6 @@ async function tryRestoreSession(){
   try{ await checkPendingAlerts(); }catch(e){}
   subscribeApprovals();
   if(isSuperAdmin(currentUser.name)) updateApprovalBadge();
-  // ── FIX: Load tournament days and render day bar ──
   await loadTournDays();
   renderTopDay();
   await loadSectionTimes();
@@ -975,14 +1007,12 @@ async function tryRestoreSession(){
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&currentUser){ fbSetUser(currentUser); startHeartbeat(); } });
 }
 
-// Run on page load
 tryRestoreSession();
 
 function showSub(html,onSave,onDel){
   const body=document.getElementById('sub-modal-body');
   body.innerHTML=html;
   document.getElementById('sub-modal').classList.add('open');
-  // Use direct onclick for maximum mobile compatibility
   const cancelBtn=body.querySelector('.sub-cancel');
   const saveBtn=body.querySelector('.sub-save');
   const delBtn=body.querySelector('.sub-del');
@@ -1000,7 +1030,6 @@ function showSub(html,onSave,onDel){
 
 document.addEventListener('click',function(e){
   let t = e.target;
-  // Walk up the DOM tree to find the button
   for(let i=0; i<5; i++){
     if(!t) break;
     if(t.classList){

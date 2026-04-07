@@ -339,30 +339,55 @@ const DEFAULT_DAILY_CHECKS = [
 ];
 
 let DAILY_CHECKS = JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
+let DAILY_BY_DAY = {}; // { day1: [...checks], day2: [...checks] }
 
-const fbSaveDailyCheck=sec=>db.collection('daily_checks').doc(sec.id).set({...sec,items:JSON.stringify(sec.items)});
-const fbDelDailyCheck=id=>db.collection('daily_checks').doc(id).delete();
+function dcCollection(dayId){ return 'daily_checks_'+(dayId||activeDay); }
+const fbSaveDailyCheck=(sec,dayId)=>db.collection(dcCollection(dayId)).doc(sec.id).set({...sec,items:JSON.stringify(sec.items)});
+const fbDelDailyCheck=(id,dayId)=>db.collection(dcCollection(dayId)).doc(id).delete();
+
+function getCurrentDailyChecks(){ return DAILY_BY_DAY[activeDay] || DAILY_CHECKS; }
+function setCurrentDailyChecks(arr){ DAILY_BY_DAY[activeDay]=arr; }
 
 async function loadDailyChecks(){
   try{
-    const snap=await db.collection('daily_checks').get();
+    // Aktif gün için gün-bazlı koleksiyonu dene
+    const snap=await db.collection(dcCollection(activeDay)).get();
     if(!snap.empty){
       const arr=[];
       snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,items:typeof x.items==='string'?JSON.parse(x.items):x.items}); }catch(e){} });
-      if(arr.length){ DAILY_CHECKS=arr; }
+      if(arr.length){ DAILY_BY_DAY[activeDay]=arr; DAILY_CHECKS=arr; return; }
     }
+    // Yoksa eski global koleksiyonu dene (geriye uyumluluk)
+    const snapOld=await db.collection('daily_checks').get();
+    if(!snapOld.empty){
+      const arr=[];
+      snapOld.forEach(d=>{ try{ const x=d.data(); arr.push({...x,items:typeof x.items==='string'?JSON.parse(x.items):x.items}); }catch(e){} });
+      if(arr.length){ DAILY_BY_DAY[activeDay]=arr; DAILY_CHECKS=arr; return; }
+    }
+    // Hiçbiri yoksa varsayılanları kullan
+    DAILY_BY_DAY[activeDay]=JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
+    DAILY_CHECKS=DAILY_BY_DAY[activeDay];
   }catch(e){ console.warn('loadDailyChecks failed, using defaults'); }
 }
 
 let unsubDailyChecks=null;
 function subscribeDailyChecks(){
-  unsubDailyChecks=db.collection('daily_checks').onSnapshot(snap=>{
+  if(unsubDailyChecks) unsubDailyChecks();
+  unsubDailyChecks=db.collection(dcCollection(activeDay)).onSnapshot(snap=>{
     if(!snap.empty){
       const arr=[];
       snap.forEach(d=>{ try{ const x=d.data(); arr.push({...x,items:typeof x.items==='string'?JSON.parse(x.items):x.items}); }catch(e){} });
-      if(arr.length){ DAILY_CHECKS=arr; updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); }
+      if(arr.length){ DAILY_BY_DAY[activeDay]=arr; DAILY_CHECKS=arr; updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); }
     }
   });
+}
+
+// Diğer günlere kopyalama helper
+async function copyDailyToOtherDays(sec, excludeDay){
+  const otherDays=tournDays.filter(d=>d.id!==excludeDay);
+  for(const day of otherDays){
+    await fbSaveDailyCheck(sec, day.id);
+  }
 }
 
 let activeDailyDay = localStorage.getItem('dpwt_daily_day') || 'day1';
@@ -377,7 +402,7 @@ const DEFAULT_DAYS = [
 ];
 let tournDays = JSON.parse(JSON.stringify(DEFAULT_DAYS));
 let activeDay = localStorage.getItem('dpwt_active_day') || 'day1';
-function setActiveDay(id){ activeDay=id; localStorage.setItem('dpwt_active_day',id); renderTopDay(); renderSidebar(); renderContent(); }
+function setActiveDay(id){ activeDay=id; localStorage.setItem('dpwt_active_day',id); renderTopDay(); renderSidebar(); renderContent(); loadDailyChecks().then(()=>{ subscribeDailyChecks(); updateDailyBadge(); if(document.getElementById('daily-modal').classList.contains('open')) renderDailyModal(); }); }
 
 const DEPT_COLORS = {
   'Teknik':{bg:'rgba(56,139,251,.1)',border:'rgba(56,139,251,.3)',text:'#60a5fa',header:'rgba(56,139,251,.2)'},
@@ -967,140 +992,155 @@ document.getElementById('users-close').addEventListener('click',()=>document.get
 function dailyKey(checkId,itemIdx){ return'daily__'+activeDay+'__'+checkId+'__'+itemIdx; }
 function fbDailyKey(k){ return k.replace(/[|]/g,'__').replace(/__/g,'_'); }
 
-function getDailyStats(){ let done=0,total=0; DAILY_CHECKS.forEach(sec=>{ sec.items.forEach((_,i)=>{ total++; if(state[dailyKey(sec.id,i)]?.done) done++; }); }); return{done,total}; }
+function getDailyStats(){ const checks=getCurrentDailyChecks(); let done=0,total=0; checks.forEach(sec=>{ sec.items.forEach((_,i)=>{ total++; if(state[dailyKey(sec.id,i)]?.done) done++; }); }); return{done,total}; }
 function updateDailyBadge(){ const{done,total}=getDailyStats(); const badge=document.getElementById('daily-badge'); if(badge) badge.style.display=done<total?'block':'none'; }
 async function toggleDailyItem(k){ try{ if(state[k]?.done){ await db.collection('tasks').doc(fbDailyKey(k)).delete(); } else { await db.collection('tasks').doc(fbDailyKey(k)).set({key:k,done:true,who:currentUser.name,dept:currentUser.dept,time:nowTime()}); } }catch(e){ toast('Hata: '+e.message,'error'); } }
 
 function renderDailyModal(){
+  const checks=getCurrentDailyChecks();
   const{done,total}=getDailyStats(); const pct=total?Math.round(done/total*100):0;
   const day=tournDays.find(d=>d.id===activeDay);
-  const label=document.getElementById('daily-day-label'); if(label) label.textContent=(day?.label||'')+' — '+(day?.date?new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'');
+  const label=document.getElementById('daily-day-label'); if(label) label.textContent=(day?.label||'')+' \u2014 '+(day?.date?new Date(day.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'');
   const progLabel=document.getElementById('daily-progress-label'); if(progLabel) progLabel.textContent=done+'/'+total+' ('+pct+'%)';
   const fill=document.getElementById('daily-prog-fill'); if(fill) fill.style.width=pct+'%';
   const c=document.getElementById('daily-content');
   const myDept=currentUser?.dept;
-  const filtered=isAdmin()?DAILY_CHECKS:DAILY_CHECKS.filter(s=>s.dept===myDept);
-  if(!filtered.length){ c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px">Departmanınıza ait günlük kontrol yok</div>'; return; }
+  const filtered=isAdmin()?checks:checks.filter(s=>s.dept===myDept);
+  if(!filtered.length){ c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:32px">Departman\u0131n\u0131za ait g\u00fcnl\u00fck kontrol yok</div>'; return; }
   let h='';
   if(isAdmin()){
-    h+=`<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn-sm green" id="daily-add-sec-btn" style="flex:1;justify-content:center;font-size:12px">+ Yeni Alan</button><button class="btn-sm" id="daily-reset-btn" style="font-size:12px;color:#f87171;border-color:#f87171">🔄 Varsayılana Dön</button></div>`;
+    h+=`<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:8px"><span style="font-size:14px">\ud83d\udcc5</span><span style="font-size:12px;color:var(--amber)">Bu liste <strong>${escapeHtml(day?.label||activeDay)}</strong> g\u00fcn\u00fcne \u00f6zeldir. Her g\u00fcn farkl\u0131 kontrol listesi olabilir.</span></div>`;
+    h+=`<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn-sm green" id="daily-add-sec-btn" style="flex:1;justify-content:center;font-size:12px">+ Yeni Alan</button><button class="btn-sm" id="daily-reset-btn" style="font-size:12px;color:#f87171;border-color:#f87171">\ud83d\udd04 Varsay\u0131lana D\u00f6n</button></div>`;
   }
   filtered.forEach(sec=>{
     const col=getDeptColor(sec.dept); const secDone=sec.items.filter((_,i)=>state[dailyKey(sec.id,i)]?.done).length;
-    h+=`<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${sec.ico}</span><span style="font-size:13px;font-weight:600;color:${col.text}">${escapeHtml(sec.title)}</span></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span>${isAdmin()?`<button class="daily-edit-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">✏️</button><button class="daily-add-item-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">+</button><button class="daily-del-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:#f87171;border-color:#f87171">✕</button>`:''}</div></div><div>`;
-    sec.items.forEach((item,i)=>{ const k=dailyKey(sec.id,i); const s=state[k]; const isDone=s?.done; h+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}"><div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}</div><span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(item)}</span>${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${escapeHtml(s.who)} ${escapeHtml(s.time)||''}</span>`:''}</div>${isAdmin()?`<button class="daily-edit-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);flex-shrink:0">✏️</button><button class="daily-del-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:#f87171;flex-shrink:0">✕</button>`:''}</div>`; });
+    h+=`<div style="background:${col.bg};border:1px solid ${col.border};border-radius:12px;margin-bottom:12px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:${col.header};border-bottom:1px solid ${col.border}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">${sec.ico}</span><span style="font-size:13px;font-weight:600;color:${col.text}">${escapeHtml(sec.title)}</span></div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:${col.text};font-family:DM Mono,monospace">${secDone}/${sec.items.length}</span>${isAdmin()?`<button class="daily-edit-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">\u270f\ufe0f</button><button class="daily-add-item-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:${col.text};border-color:${col.border}">+</button><button class="daily-del-sec-btn btn-sm" data-id="${sec.id}" style="font-size:10px;padding:2px 6px;color:#f87171;border-color:#f87171">\u2715</button>`:''}</div></div><div>`;
+    sec.items.forEach((item,i)=>{ const k=dailyKey(sec.id,i); const s=state[k]; const isDone=s?.done; h+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid ${col.border};${isDone?'opacity:.6':''}"><div class="daily-row" data-k="${k}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer"><div style="width:18px;height:18px;flex-shrink:0;border:1.5px solid ${isDone?col.text:col.border};border-radius:5px;display:flex;align-items:center;justify-content:center;background:${isDone?col.header:'transparent'};transition:all .15s">${isDone?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="${col.text}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}</div><span style="font-size:13px;color:var(--text);${isDone?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(item)}</span>${isDone?`<span style="margin-left:auto;font-size:10px;color:var(--text3);font-family:DM Mono,monospace;white-space:nowrap">${escapeHtml(s.who)} ${escapeHtml(s.time)||''}</span>`:''}</div>${isAdmin()?`<button class="daily-edit-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);flex-shrink:0">\u270f\ufe0f</button><button class="daily-del-item-btn" data-sid="${sec.id}" data-idx="${i}" style="background:none;border:none;cursor:pointer;font-size:11px;color:#f87171;flex-shrink:0">\u2715</button>`:''}</div>`; });
     h+=`</div></div>`;
   });
   c.innerHTML=h;
   c.querySelectorAll('.daily-row').forEach(el=>{ el.addEventListener('click',async()=>{ await toggleDailyItem(el.dataset.k); }); });
 
-  // ── Admin: Günlük Kontrol Düzenleme ──
+  function otherDaysCheckboxes(){
+    return tournDays.filter(d=>d.id!==activeDay).map(d=>`<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;padding:2px 0"><input type="checkbox" class="other-day-cb" value="${d.id}" style="accent-color:var(--green)" checked />${escapeHtml(d.label)} (${d.date?new Date(d.date).toLocaleDateString('tr-TR',{day:'numeric',month:'short'}):''})</label>`).join('');
+  }
+  function otherDaysSection(){
+    const others=tournDays.filter(d=>d.id!==activeDay);
+    if(!others.length) return '';
+    return '<div style="margin-top:12px;padding:12px;background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2);border-radius:8px"><div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">\ud83d\udcc5 Di\u011fer g\u00fcnlere de eklensin mi?</div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)"><input type="checkbox" id="dc-select-all" style="accent-color:var(--green)" checked /> T\u00fcm\u00fcn\u00fc se\u00e7/kald\u0131r</label>'+otherDaysCheckboxes()+'</div>';
+  }
+  function getSelectedOtherDays(){ return Array.from(document.querySelectorAll('.other-day-cb:checked')).map(cb=>cb.value); }
+  function bindSelectAll(){ const sa=document.getElementById('dc-select-all'); if(sa) sa.addEventListener('change',()=>{ document.querySelectorAll('.other-day-cb').forEach(cb=>{ cb.checked=sa.checked; }); }); }
+
   if(isAdmin()){
     const addSecBtn=document.getElementById('daily-add-sec-btn');
     if(addSecBtn) addSecBtn.addEventListener('click',()=>{
-      showSub('<h3>Yeni Günlük Alan</h3>'+
-        '<div class="field"><label>ALAN ADI</label><input id="f-dc-title" placeholder="örn: VIP Çadırı"/></div>'+
-        '<div class="field"><label>EMOJİ</label><input id="f-dc-ico" placeholder="🎪" maxlength="2" style="width:80px;font-size:20px"/></div>'+
-        '<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" placeholder="örn: F&B"/></div>'+
-        '<div class="field"><label>KONTROL MADDELERİ (her satıra bir tane)</label><textarea id="f-dc-items" rows="5" placeholder="Masa kurulumu kontrol edildi&#10;İçecek stoku yeterli"></textarea></div>'+
-        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      showSub('<h3>Yeni G\u00fcnl\u00fck Alan</h3>'+'<div style="font-size:11px;color:var(--amber);margin-bottom:12px">\ud83d\udcc5 \u015eu an: <strong>'+escapeHtml(day?.label||activeDay)+'</strong></div>'+'<div class="field"><label>ALAN ADI</label><input id="f-dc-title" placeholder="\u00f6rn: VIP \u00c7ad\u0131r\u0131"/></div>'+'<div class="field"><label>EMOJI</label><input id="f-dc-ico" placeholder="\ud83c\udfaa" maxlength="2" style="width:80px;font-size:20px"/></div>'+'<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" placeholder="\u00f6rn: F&B"/></div>'+'<div class="field"><label>KONTROL MADDELER\u0130 (her sat\u0131ra bir tane)</label><textarea id="f-dc-items" rows="5" placeholder="Masa kurulumu kontrol edildi&#10;\u0130\u00e7ecek stoku yeterli"></textarea></div>'+otherDaysSection()+'<div class="modal-actions"><button class="btn-sm sub-cancel">\u0130ptal</button><button class="btn-sm green sub-save">Kaydet \u2192</button></div>',
       async()=>{
         const title=document.getElementById('f-dc-title').value.trim();
-        const ico=document.getElementById('f-dc-ico').value.trim()||'📋';
+        const ico=document.getElementById('f-dc-ico').value.trim()||'\ud83d\udccb';
         const dept=document.getElementById('f-dc-dept').value.trim();
         const items=document.getElementById('f-dc-items').value.split('\n').map(t=>t.trim()).filter(Boolean);
-        if(!title||!dept){ toast('Alan adı ve departman zorunlu.','error'); return; }
+        if(!title||!dept){ toast('Alan ad\u0131 ve departman zorunlu.','error'); return; }
         if(!items.length){ toast('En az bir kontrol maddesi girin.','error'); return; }
         const newSec={id:slugify(title)+'_daily',ico,title,dept,items};
-        DAILY_CHECKS.push(newSec);
-        await fbSaveDailyCheck(newSec);
-        closeSub(); renderDailyModal(); toast(title+' eklendi ✓','success');
-      });
+        const cur=getCurrentDailyChecks(); cur.push(newSec); setCurrentDailyChecks(cur); DAILY_CHECKS=cur;
+        await fbSaveDailyCheck(newSec, activeDay);
+        const otherDays=getSelectedOtherDays();
+        for(const dayId of otherDays){ await fbSaveDailyCheck(newSec, dayId); }
+        closeSub(); renderDailyModal();
+        toast(title+' eklendi'+(otherDays.length?' ('+(otherDays.length+1)+' g\u00fcn)':'')+' \u2713','success');
+      }); bindSelectAll();
     });
 
     const resetBtn=document.getElementById('daily-reset-btn');
     if(resetBtn) resetBtn.addEventListener('click',async()=>{
-      if(!confirm('Günlük kontrol listesi varsayılana sıfırlanacak. Emin misiniz?')) return;
+      if(!confirm((day?.label||'')+' g\u00fcnl\u00fck kontrol listesi varsay\u0131lana s\u0131f\u0131rlanacak. Emin misiniz?')) return;
       try{
-        const snap=await db.collection('daily_checks').get();
+        const snap=await db.collection(dcCollection(activeDay)).get();
         await Promise.all(snap.docs.map(d=>d.ref.delete()));
-        DAILY_CHECKS=JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
-        for(const sec of DAILY_CHECKS){ await fbSaveDailyCheck(sec); }
-        renderDailyModal(); toast('Varsayılana döndürüldü ✓','success');
+        const defaults=JSON.parse(JSON.stringify(DEFAULT_DAILY_CHECKS));
+        DAILY_BY_DAY[activeDay]=defaults; DAILY_CHECKS=defaults;
+        for(const sec of defaults){ await fbSaveDailyCheck(sec, activeDay); }
+        renderDailyModal(); toast((day?.label||'')+' varsay\u0131lana d\u00f6nd\u00fcr\u00fcld\u00fc \u2713','success');
       }catch(e){ toast('Hata: '+e.message,'error'); }
     });
 
     c.querySelectorAll('.daily-edit-sec-btn').forEach(btn=>btn.addEventListener('click',()=>{
-      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
-      showSub('<h3>Alanı Düzenle</h3>'+
-        '<div class="field"><label>ALAN ADI</label><input id="f-dc-title" value="'+escapeHtml(sec.title)+'"/></div>'+
-        '<div class="field"><label>EMOJİ</label><input id="f-dc-ico" value="'+sec.ico+'" maxlength="2" style="width:80px;font-size:20px"/></div>'+
-        '<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" value="'+escapeHtml(sec.dept)+'"/></div>'+
-        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      const cur=getCurrentDailyChecks(); const sec=cur.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      showSub('<h3>Alan\u0131 D\u00fczenle</h3>'+'<div style="font-size:11px;color:var(--amber);margin-bottom:12px">\ud83d\udcc5 \u015eu an: <strong>'+escapeHtml(day?.label||activeDay)+'</strong></div>'+'<div class="field"><label>ALAN ADI</label><input id="f-dc-title" value="'+escapeHtml(sec.title)+'"/></div>'+'<div class="field"><label>EMOJI</label><input id="f-dc-ico" value="'+sec.ico+'" maxlength="2" style="width:80px;font-size:20px"/></div>'+'<div class="field"><label>DEPARTMAN</label><input id="f-dc-dept" value="'+escapeHtml(sec.dept)+'"/></div>'+otherDaysSection()+'<div class="modal-actions"><button class="btn-sm sub-cancel">\u0130ptal</button><button class="btn-sm green sub-save">Kaydet \u2192</button></div>',
       async()=>{
         sec.title=document.getElementById('f-dc-title').value.trim()||sec.title;
         sec.ico=document.getElementById('f-dc-ico').value.trim()||sec.ico;
         sec.dept=document.getElementById('f-dc-dept').value.trim()||sec.dept;
-        await fbSaveDailyCheck(sec);
-        closeSub(); renderDailyModal(); toast('Güncellendi ✓','success');
-      });
+        await fbSaveDailyCheck(sec, activeDay);
+        const otherDays=getSelectedOtherDays();
+        for(const dayId of otherDays){ await fbSaveDailyCheck(sec, dayId); }
+        closeSub(); renderDailyModal(); toast('G\u00fcncellendi'+(otherDays.length?' (+'+(otherDays.length)+' g\u00fcn)':'')+' \u2713','success');
+      }); bindSelectAll();
     }));
 
     c.querySelectorAll('.daily-add-item-btn').forEach(btn=>btn.addEventListener('click',()=>{
-      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
-      showSub('<h3>Kontrol Maddesi Ekle</h3><p>'+escapeHtml(sec.title)+'</p>'+
-        '<div class="field"><label>MADDELER (her satıra bir tane)</label><textarea id="f-dc-items" rows="4" placeholder="Yeni kontrol maddesi"></textarea></div>'+
-        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Ekle →</button></div>',
+      const cur=getCurrentDailyChecks(); const sec=cur.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      showSub('<h3>Kontrol Maddesi Ekle</h3><p>'+escapeHtml(sec.title)+'</p>'+'<div style="font-size:11px;color:var(--amber);margin-bottom:8px">\ud83d\udcc5 \u015eu an: <strong>'+escapeHtml(day?.label||activeDay)+'</strong></div>'+'<div class="field"><label>MADDELER (her sat\u0131ra bir tane)</label><textarea id="f-dc-items" rows="4" placeholder="Yeni kontrol maddesi"></textarea></div>'+otherDaysSection()+'<div class="modal-actions"><button class="btn-sm sub-cancel">\u0130ptal</button><button class="btn-sm green sub-save">Ekle \u2192</button></div>',
       async()=>{
         const items=document.getElementById('f-dc-items').value.split('\n').map(t=>t.trim()).filter(Boolean);
         if(!items.length){ toast('En az bir madde girin.','error'); return; }
         sec.items.push(...items);
-        await fbSaveDailyCheck(sec);
-        closeSub(); renderDailyModal(); toast(items.length+' madde eklendi ✓','success');
-      });
+        await fbSaveDailyCheck(sec, activeDay);
+        const otherDays=getSelectedOtherDays();
+        for(const dayId of otherDays){
+          try{
+            const os=await db.collection(dcCollection(dayId)).doc(sec.id).get();
+            if(os.exists){ const od=os.data(); const oi=typeof od.items==='string'?JSON.parse(od.items):od.items; oi.push(...items); await fbSaveDailyCheck({...od,items:oi},dayId); }
+            else{ await fbSaveDailyCheck(sec,dayId); }
+          }catch(e){ await fbSaveDailyCheck(sec,dayId); }
+        }
+        closeSub(); renderDailyModal(); toast(items.length+' madde eklendi'+(otherDays.length?' (+'+(otherDays.length)+' g\u00fcn)':'')+' \u2713','success');
+      }); bindSelectAll();
     }));
 
     c.querySelectorAll('.daily-del-sec-btn').forEach(btn=>btn.addEventListener('click',async()=>{
-      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.id); if(!sec) return;
-      if(!confirm('"'+sec.title+'" alanını silmek istediğinize emin misiniz?')) return;
+      const cur=getCurrentDailyChecks(); const sec=cur.find(s=>s.id===btn.dataset.id); if(!sec) return;
+      if(!confirm('"'+sec.title+'" alan\u0131n\u0131 '+(day?.label||'')+' g\u00fcn\u00fcnden silmek istedi\u011finize emin misiniz?')) return;
       try{
-        await fbDelDailyCheck(sec.id);
-        DAILY_CHECKS.splice(DAILY_CHECKS.findIndex(s=>s.id===sec.id),1);
-        renderDailyModal(); toast(sec.title+' silindi','info');
+        await fbDelDailyCheck(sec.id,activeDay);
+        cur.splice(cur.findIndex(s=>s.id===sec.id),1); setCurrentDailyChecks(cur); DAILY_CHECKS=cur;
+        renderDailyModal(); toast(sec.title+' silindi ('+(day?.label||'')+')','info');
       }catch(e){ toast('Hata: '+e.message,'error'); }
     }));
 
     c.querySelectorAll('.daily-edit-item-btn').forEach(btn=>btn.addEventListener('click',()=>{
-      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.sid); if(!sec) return;
-      const idx=Number(btn.dataset.idx); const cur=sec.items[idx]||'';
-      showSub('<h3>Maddeyi Düzenle</h3>'+
-        '<div class="field"><label>KONTROL MADDESİ</label><input id="f-dc-item" value="'+escapeHtml(cur)+'"/></div>'+
-        '<div class="modal-actions"><button class="btn-sm sub-cancel">İptal</button><button class="btn-sm green sub-save">Kaydet →</button></div>',
+      const cur=getCurrentDailyChecks(); const sec=cur.find(s=>s.id===btn.dataset.sid); if(!sec) return;
+      const idx=Number(btn.dataset.idx); const curVal=sec.items[idx]||'';
+      showSub('<h3>Maddeyi D\u00fczenle</h3>'+'<div style="font-size:11px;color:var(--amber);margin-bottom:8px">\ud83d\udcc5 \u015eu an: <strong>'+escapeHtml(day?.label||activeDay)+'</strong></div>'+'<div class="field"><label>KONTROL MADDES\u0130</label><input id="f-dc-item" value="'+escapeHtml(curVal)+'"/></div>'+otherDaysSection()+'<div class="modal-actions"><button class="btn-sm sub-cancel">\u0130ptal</button><button class="btn-sm green sub-save">Kaydet \u2192</button></div>',
       async()=>{
         const val=document.getElementById('f-dc-item').value.trim();
-        if(!val){ toast('Boş olamaz.','error'); return; }
-        sec.items[idx]=val;
-        await fbSaveDailyCheck(sec);
-        closeSub(); renderDailyModal(); toast('Güncellendi ✓','success');
-      });
+        if(!val){ toast('Bo\u015f olamaz.','error'); return; }
+        const oldVal=sec.items[idx]; sec.items[idx]=val;
+        await fbSaveDailyCheck(sec, activeDay);
+        const otherDays=getSelectedOtherDays();
+        for(const dayId of otherDays){
+          try{ const os=await db.collection(dcCollection(dayId)).doc(sec.id).get();
+            if(os.exists){ const od=os.data(); const oi=typeof od.items==='string'?JSON.parse(od.items):od.items; const oIdx=oi.indexOf(oldVal); if(oIdx>=0){ oi[oIdx]=val; await fbSaveDailyCheck({...od,items:oi},dayId); } }
+          }catch(e){}
+        }
+        closeSub(); renderDailyModal(); toast('G\u00fcncellendi'+(otherDays.length?' (+'+(otherDays.length)+' g\u00fcn)':'')+' \u2713','success');
+      }); bindSelectAll();
     }));
 
     c.querySelectorAll('.daily-del-item-btn').forEach(btn=>btn.addEventListener('click',async()=>{
-      const sec=DAILY_CHECKS.find(s=>s.id===btn.dataset.sid); if(!sec) return;
-      const idx=Number(btn.dataset.idx);
-      const item=sec.items[idx];
-      if(!confirm('"'+item+'" silinecek. Emin misiniz?')) return;
+      const cur=getCurrentDailyChecks(); const sec=cur.find(s=>s.id===btn.dataset.sid); if(!sec) return;
+      const idx=Number(btn.dataset.idx); const item=sec.items[idx];
+      if(!confirm('"'+item+'" \u2014 '+(day?.label||'')+' g\u00fcn\u00fcnden silinecek. Emin misiniz?')) return;
       sec.items.splice(idx,1);
-      if(!sec.items.length){
-        await fbDelDailyCheck(sec.id);
-        DAILY_CHECKS.splice(DAILY_CHECKS.findIndex(s=>s.id===sec.id),1);
-      } else {
-        await fbSaveDailyCheck(sec);
-      }
+      if(!sec.items.length){ await fbDelDailyCheck(sec.id,activeDay); cur.splice(cur.findIndex(s=>s.id===sec.id),1); setCurrentDailyChecks(cur); DAILY_CHECKS=cur; }
+      else{ await fbSaveDailyCheck(sec,activeDay); }
       renderDailyModal(); toast('Silindi','info');
     }));
   }
 }
+
 
 // ── Super Admin Delete Approval ──
 async function requestSectionDelete(sid){
